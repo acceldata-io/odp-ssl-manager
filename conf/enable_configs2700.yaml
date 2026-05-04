@@ -1,0 +1,701 @@
+
+HADOOP:
+  - config_type: core-site
+    hadoop.ssl.require.client.cert: false
+    hadoop.ssl.hostname.verifier: DEFAULT
+    hadoop.ssl.keystores.factory.class: org.apache.hadoop.security.ssl.FileBasedKeyStoresFactory
+    hadoop.ssl.server.conf: ssl-server.xml
+    hadoop.ssl.client.conf: ssl-client.xml
+
+  - config_type: ssl-server
+    ssl.server.keystore.keypassword: $keystorepassword
+    ssl.server.keystore.password: $keystorepassword
+    ssl.server.keystore.location: $keystore
+    ssl.server.truststore.location: $truststore
+    ssl.server.truststore.password: $truststorepassword
+
+  - config_type: ssl-client
+    ssl.client.keystore.location: $keystore
+    ssl.client.keystore.password: $keystorepassword
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+
+HDFS:
+  - config_type: core-site
+    hadoop.rpc.protection: privacy
+
+  - config_type: hdfs-site
+    dfs.encrypt.data.transfer: true
+    dfs.encrypt.data.transfer.algorithm: 3des
+    
+  - config_type: ranger-hdfs-plugin-properties
+    hadoop.rpc.protection: privacy
+  
+  - config_type: ranger-hdfs-security
+    ranger.plugin.hdfs.policy.rest.url: $rangerPolicyUrl
+    
+HDFSUI:
+  - config_type: hdfs-site
+    dfs.http.policy: HTTPS_ONLY
+    dfs.namenode.https-address: 0.0.0.0:50470
+    dfs.namenode.secondary.https-address: 0.0.0.0:50091
+
+MRSHUFFLE:
+  - config_type: mapred-site
+    mapreduce.shuffle.ssl.enabled: true
+
+MAPREDUCE2UI:
+  - config_type: mapred-site
+    mapreduce.jobhistory.http.policy: HTTPS_ONLY
+    mapreduce.jobhistory.webapp.https.address: 0.0.0.0:19890
+    mapreduce.jobhistory.webapp.address: 0.0.0.0:19890
+
+  - config_type: hdfs-site
+    dfs.https.enable: true
+
+YARN:
+  - config_type: yarn-site
+    yarn.http.policy: HTTPS_ONLY
+    yarn.log.server.url: $historyserver
+    yarn.log.server.web-service.url: $timelineserver
+    yarn.nodemanager.webapp.https.address: 0.0.0.0:8044
+
+  - config_type: hdfs-site
+    dfs.https.enable: true
+  
+  - config_type: ranger-yarn-security
+    ranger.plugin.yarn.policy.rest.url: $rangerPolicyUrl
+
+TEZ:
+  - config_type: tez-site
+    tez.runtime.shuffle.ssl.enable: true
+    tez.runtime.shuffle.keep-alive.enabled: true
+
+
+KAFKA:
+  - config_type: kafka-broker
+    ssl.keystore.location: $keystore
+    ssl.keystore.password: $keystorepassword
+    ssl.key.password: $keystorepassword
+    ssl.truststore.location: $truststore
+    ssl.truststore.password: $truststorepassword
+    listeners: SASL_SSL://localhost:6667
+    security.inter.broker.protocol: SASL_SSL 
+
+  - config_type: ranger-kafka-security
+    ranger.plugin.kafka.policy.rest.url: $rangerPolicyUrl
+
+OZONE:
+  - config_type: ozone-env
+    ozone_datanode_ssl_enabled: true
+    ozone_manager_ssl_enabled: true
+    ozone_recon_ssl_enabled: true
+    ozone_s3g_ssl_enabled: true
+    ozone_scm_ssl_enabled: true
+    ozone__ssl_enabled: true
+    ozone__ssl_enabled: true
+
+  - config_type: ranger-ozone-policymgr-ssl
+    xasecure.policymgr.clientssl.keystore: $keystore    
+    xasecure.policymgr.clientssl.keystore.password: $keystorepassword
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  - config_type: ozone-ssl-client
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+    ssl.client.truststore.type: jks
+
+  - config_type: ssl-client-datanode
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+    ssl.client.truststore.type: jks
+
+  - config_type: ssl-client-om
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+    ssl.client.truststore.type: jks
+
+  - config_type: ssl-client-recon
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+    ssl.client.truststore.type: jks
+
+  - config_type: ssl-client-s3g
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+    ssl.client.truststore.type: jks
+
+  - config_type: ssl-client-scm
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+    ssl.client.truststore.type: jks
+
+  - config_type: ssl-server-datanode
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+    ssl.client.truststore.type: jks
+    ssl.server.keystore.location: $keystore
+    ssl.server.keystore.keypassword: $keystorepassword
+    ssl.server.keystore.password: $keystorepassword
+    ssl.server.keystore.type: jks
+
+  - config_type: ssl-server-om
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+    ssl.client.truststore.type: jks
+    ssl.server.keystore.location: $keystore
+    ssl.server.keystore.keypassword: $keystorepassword
+    ssl.server.keystore.password: $keystorepassword
+    ssl.server.keystore.type: jks
+
+  - config_type: ssl-server-recon
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+    ssl.client.truststore.type: jks
+    ssl.server.keystore.location: $keystore
+    ssl.server.keystore.keypassword: $keystorepassword
+    ssl.server.keystore.password: $keystorepassword
+    ssl.server.keystore.type: jks
+
+  - config_type: ssl-server-s3g
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+    ssl.client.truststore.type: jks
+    ssl.server.keystore.location: $keystore
+    ssl.server.keystore.keypassword: $keystorepassword
+    ssl.server.keystore.password: $keystorepassword
+    ssl.server.keystore.type: jks
+
+  - config_type: ssl-server-scm
+    ssl.client.truststore.location: $truststore
+    ssl.client.truststore.password: $truststorepassword
+    ssl.client.truststore.type: jks
+    ssl.server.keystore.location: $keystore
+    ssl.server.keystore.keypassword: $keystorepassword
+    ssl.server.keystore.password: $keystorepassword
+    ssl.server.keystore.type: jks
+
+  - config_type: ozone-site
+    ozone.https.client.keystore.resource: ssl-client.xml
+    ozone.https.server.keystore.resource: ssl-server.xml
+    ozone.http.policy: HTTPS_ONLY
+    hadoop.rpc.protection: privacy
+
+  - config_type: ranger-ozone-plugin-properties
+    hadoop.rpc.protection: privacy
+
+CRUISE_CONTROL:
+  - config_type: cruise-control
+    security.inter.broker.protocol: SASL_SSL 
+    ssl.client.auth: none
+    ssl.enabled.protocols: TLSv1.2
+    ssl.endpoint.identification.algorithm: HTTPS
+    ssl.key.password: $keystorepassword
+    ssl.keystore.location: $keystore
+    ssl.keystore.password: $keystorepassword
+    ssl.truststore.location: $truststore
+    ssl.truststore.password: $truststorepassword
+    ssl.protocol: TLSv1.2
+    webserver.ssl.enable: true
+    webserver.ssl.key.password: $keystorepassword
+    webserver.ssl.keystore.location: $keystore
+    webserver.ssl.keystore.password: $keystorepassword
+    webserver.ssl.keystore.type: jks
+    webserver.ssl.protocol: TLSv1.2
+    webserver.ssl.truststore.location: $truststore
+    webserver.ssl.truststore.password: $truststorepassword
+  - config_type: kafka-broker
+    cruise.control.metrics.reporter.ssl.client.auth: none
+    cruise.control.metrics.reporter.ssl.enabled.protocols: TLSv1.2
+    cruise.control.metrics.reporter.ssl.endpoint.identification.algorithm: HTTPS
+    cruise.control.metrics.reporter.ssl.keystore.location: $keystore
+    cruise.control.metrics.reporter.ssl.keystore.password: $keystorepassword
+    cruise.control.metrics.reporter.ssl.protocol: TLSv1.2
+    cruise.control.metrics.reporter.ssl.truststore.location: $truststore
+    cruise.control.metrics.reporter.ssl.truststore.password: $truststorepassword
+
+
+
+CRUISE_CONTROL3:
+  - config_type: cruise-control3
+    security.inter.broker.protocol: SASL_SSL 
+    ssl.client.auth: none
+    ssl.enabled.protocols: TLSv1.2
+    ssl.endpoint.identification.algorithm: HTTPS
+    ssl.key.password: $keystorepassword
+    ssl.keystore.location: $keystore
+    ssl.keystore.password: $keystorepassword
+    ssl.truststore.location: $truststore
+    ssl.truststore.password: $truststorepassword
+    ssl.protocol: TLSv1.2
+    webserver.ssl.enable: true
+    webserver.ssl.key.password: $keystorepassword
+    webserver.ssl.keystore.location: $keystore
+    webserver.ssl.keystore.password: $keystorepassword
+    webserver.ssl.keystore.type: jks
+    webserver.ssl.protocol: TLSv1.2
+    webserver.ssl.truststore.location: $truststore
+    webserver.ssl.truststore.password: $truststorepassword
+  - config_type: kafka3-broker
+    cruise.control.metrics.reporter.ssl.client.auth: none
+    cruise.control.metrics.reporter.ssl.enabled.protocols: TLSv1.2
+    cruise.control.metrics.reporter.ssl.endpoint.identification.algorithm: HTTPS
+    cruise.control.metrics.reporter.ssl.keystore.location: $keystore
+    cruise.control.metrics.reporter.ssl.keystore.password: $keystorepassword
+    cruise.control.metrics.reporter.ssl.protocol: TLSv1.2
+    cruise.control.metrics.reporter.ssl.truststore.location: $truststore
+    cruise.control.metrics.reporter.ssl.truststore.password: $truststorepassword
+
+KAFKA3:
+  - config_type: kafka3-broker
+    security.inter.broker.protocol: SASL_SSL 
+    listeners: SASL_SSL://localhost:6669
+    ssl.keystore.location: $keystore
+    ssl.keystore.password: $keystorepassword
+    ssl.key.password: $keystorepassword
+    ssl.truststore.location: $truststore
+    ssl.truststore.password: $truststorepassword
+
+KAFKA_CONNECT:
+  - config_type: kafka-connect-distributed
+    security.inter.broker.protocol: SASL_SSL 
+
+
+KAFKA3_CONNECT:
+  - config_type: kafka3-connect-distributed
+    security.inter.broker.protocol: SASL_SSL 
+
+PINOT:
+  - config_type: pinot-env
+    enable_ssl: true
+    controller.tls.keystore.path: $p12_location
+    controller.tls.truststore.path: $p12_location
+    controller.tls.keystore.password: $keystorepassword
+    controller.tls.truststore.password: $keystorepassword
+    controller.access.protocols: https
+
+
+HIVE:
+  - config_type: hive-site
+    hive.server2.use.SSL: true
+    hive.server2.keystore.path: $keystore
+    hive.server2.keystore.password: $keystorepassword
+
+  - config_type: ranger-hive-security
+    ranger.plugin.hive.policy.rest.url: $rangerPolicyUrl
+
+ZEPPELIN:
+  - config_type: zeppelin-site
+    zeppelin.ssl: true
+    zeppelin.ssl.client.auth: false
+    zeppelin.ssl.key.manager.password: $keystorepassword
+    zeppelin.ssl.keystore.password: $keystorepassword
+    zeppelin.ssl.keystore.path: $keystore
+    zeppelin.ssl.keystore.type: JKS
+    zeppelin.ssl.truststore.password: $truststorepassword
+    zeppelin.ssl.truststore.path: $keystore
+    zeppelin.ssl.truststore.type: JKS
+
+AMBARI_INFRA_SOLR:
+  - config_type: infra-solr-env
+    infra_solr_ssl_enabled: true
+    infra_solr_keystore_location: $p12_location
+    infra_solr_keystore_password: $keystorepassword
+    infra_solr_truststore_location: $p12_location
+    infra_solr_truststore_password: $truststorepassword
+
+RANGER_KMS:
+  - config_type: ranger-kms-site
+    ranger.service.https.attrib.client.auth: want
+    ranger.service.https.attrib.keystore.credential.alias: keyStoreCredentialAlias
+    ranger.service.https.attrib.keystore.file: $keystore
+    ranger.service.https.attrib.keystore.keyalias: nifi-cert
+    ranger.service.https.attrib.keystore.pass: $keystorepassword
+    ranger.service.https.attrib.ssl.enabled: true
+    ranger.service.https.port: 9393
+
+  - config_type: ranger-kms-security
+    ranger.plugin.kms.policy.rest.url: $rangerPolicyUrl
+
+  - config_type: kms-env
+    kms_port: 9393
+
+  - config_type: kms-site
+    hadoop.kms.key.provider.uri: dbks://https@localhost:9393
+
+  - config_type: core-site
+    hadoop.security.key.provider.path: $keyProviderPath
+
+  - config_type: hdfs-site
+    dfs.encryption.key.provider.uri: $keyProviderUri 
+
+RANGERADMIN:
+  - config_type: ranger-admin-site
+    ranger.service.http.enabled: false
+    ranger.https.attrib.keystore.file: $keystore
+    ranger.service.https.attrib.keystore.pass: $keystorepassword
+    ranger.service.https.attrib.keystore.keyalias: nifi-cert
+    ranger.service.https.attrib.clientAuth: want
+    ranger.service.https.attrib.ssl.enabled: true
+    ranger.service.https.port: 6182
+    ranger.truststore.alias: nifi-cert
+    ranger.truststore.file: $truststore
+    ranger.truststore.password: $truststorepassword
+    ranger.service.https.attrib.keystore.file: $keystore
+    ranger.service.https.attrib.client.auth: want
+
+  - config_type: admin-properties
+    policymgr_external_url: $rangerSslUrl
+
+  - config_type: ranger-tagsync-policymgr-ssl
+    xasecure.policymgr.clientssl.keystore: $keystore
+    xasecure.policymgr.clientssl.keystore.password: $keystorepassword
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  - config_type: ranger-ugsync-site
+    ranger.usersync.truststore.file: $truststore
+    ranger.usersync.truststore.password: $truststorepassword
+    ranger.usersync.keystore.file: $keystore
+    ranger.usersync.keystore.password: $keystorepassword
+
+RANGERPLUGINS:
+  - config_type: ranger-hdfs-policymgr-ssl
+    xasecure.policymgr.clientssl.keystore: $keystore
+    xasecure.policymgr.clientssl.keystore.password: $keystorepassword
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  - config_type: ranger-yarn-policymgr-ssl
+    xasecure.policymgr.clientssl.keystore: $keystore
+    xasecure.policymgr.clientssl.keystore.password: $keystorepassword
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  - config_type: ranger-hive-policymgr-ssl
+    xasecure.policymgr.clientssl.keystore: $keystore
+    xasecure.policymgr.clientssl.keystore.password: $keystorepassword
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  - config_type: ranger-hbase-policymgr-ssl
+    xasecure.policymgr.clientssl.keystore: $keystore
+    xasecure.policymgr.clientssl.keystore.password: $keystorepassword
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  - config_type: ranger-atlas-policymgr-ssl
+    xasecure.policymgr.clientssl.keystore: $keystore
+    xasecure.policymgr.clientssl.keystore.password: $keystorepassword
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  - config_type: ranger-knox-policymgr-ssl
+    xasecure.policymgr.clientssl.keystore: $keystore
+    xasecure.policymgr.clientssl.keystore.password: $keystorepassword
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  - config_type: ranger-storm-policymgr-ssl
+    xasecure.policymgr.clientssl.keystore: $keystore
+    xasecure.policymgr.clientssl.keystore.password: $keystorepassword
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  - config_type: ranger-kafka-policymgr-ssl
+    xasecure.policymgr.clientssl.keystore: $keystore
+    xasecure.policymgr.clientssl.keystore.password: $keystorepassword
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  - config_type: ranger-nifi-policymgr-ssl
+    xasecure.policymgr.clientssl.keystore: $keystore
+    xasecure.policymgr.clientssl.keystore.password: $keystorepassword
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+    
+HBASE:
+  - config_type: hbase-site
+    hbase.ssl.enabled: true
+    hadoop.ssl.enabled: true
+    ssl.server.keystore.keypassword: $keystorepassword
+    ssl.server.keystore.password: $keystorepassword
+    ssl.server.keystore.location: $keystore
+
+  - config_type: ranger-hbase-security
+    ranger.plugin.hbase.policy.rest.url: $rangerPolicyUrl
+
+SPARK2:
+  - config_type: yarn-site
+    spark.authenticate: true
+
+  - config_type: spark2-defaults
+    spark.authenticate: true
+    spark.authenticate.enableSaslEncryption: true
+    spark.ssl.enabled: true
+    spark.ssl.keyPassword: $keystorepassword
+    spark.ssl.keyStore: $keystore
+    spark.ssl.keyStorePassword: $keystorepassword
+    spark.ssl.protocol: TLS
+    spark.ssl.trustStore: $truststore
+    spark.ssl.trustStorePassword: $truststorepassword
+    spark.ui.https.enabled: true
+    spark.ssl.historyServer.port: 18481
+
+  - config_type: spark2-hive-site-override
+    hive.server2.transport.mode: http
+    hive.server2.thrift.http.port: 10016
+    hive.server2.http.endpoint: cliservice
+    hive.server2.use.SSL: true
+    hive.server2.keystore.path: $keystore
+    hive.server2.keystore.password: $keystorepassword
+
+  - config_type: livy2-conf
+    livy.keystore: $keystore
+    livy.keystore.password: $keystorepassword
+    livy.key-password: $keystorepassword
+
+SPARK3:
+  - config_type: yarn-site
+    spark.authenticate: true
+
+  - config_type: spark3-defaults
+    spark.authenticate: true
+    spark.authenticate.enableSaslEncryption: true
+    spark.ssl.enabled: true
+    spark.ssl.keyPassword: $keystorepassword
+    spark.ssl.keyStore: $keystore
+    spark.ssl.keyStorePassword: $keystorepassword
+    spark.ssl.protocol: TLS
+    spark.ssl.trustStore: $truststore
+    spark.ssl.trustStorePassword: $truststorepassword
+    spark.ssl.historyServer.port: 18581
+    spark.ui.https.enabled: true    
+
+  - config_type: livy3-conf
+    livy.truststore: $keystore
+    livy.truststore.password: $keystorepassword
+    livy.keystore: $keystore
+    livy.keystore.password: $keystorepassword
+    livy.key-password: $keystorepassword    
+
+SPARK3_3_3_3:
+  - config_type: yarn-site
+    spark.authenticate: true
+
+  - config_type: spark3-3.3.3-defaults
+    spark.authenticate: true
+    spark.authenticate.enableSaslEncryption: true
+    spark.ssl.enabled: true
+    spark.ssl.keyPassword: $keystorepassword
+    spark.ssl.keyStore: $keystore
+    spark.ssl.keyStorePassword: $keystorepassword
+    spark.ssl.protocol: TLS
+    spark.ssl.trustStore: $truststore
+    spark.ssl.trustStorePassword: $truststorepassword
+    spark.ssl.historyServer.port: 18581
+    spark.ui.https.enabled: true    
+
+  - config_type: livy3-3.3.3-conf
+    livy.truststore: $keystore
+    livy.truststore.password: $keystorepassword
+    livy.keystore: $keystore
+    livy.keystore.password: $keystorepassword
+    livy.key-password: $keystorepassword    
+
+SPARK3_3_5_1:
+  - config_type: yarn-site
+    spark.authenticate: true
+
+  - config_type: spark3-3.5.1-defaults
+    spark.authenticate: true
+    spark.authenticate.enableSaslEncryption: true
+    spark.ssl.enabled: true
+    spark.ssl.keyPassword: $keystorepassword
+    spark.ssl.keyStore: $keystore
+    spark.ssl.keyStorePassword: $keystorepassword
+    spark.ssl.protocol: TLS
+    spark.ssl.trustStore: $truststore
+    spark.ssl.trustStorePassword: $truststorepassword
+    spark.ssl.historyServer.port: 18581
+    spark.ui.https.enabled: true 
+
+  - config_type: livy3-3.5.1-conf
+    livy.truststore: $keystore
+    livy.truststore.password: $keystorepassword
+    livy.keystore: $keystore
+    livy.keystore.password: $keystorepassword
+    livy.key-password: $keystorepassword    
+
+LIVY:
+  - config_type: livy-conf
+    livy.keystore: $keystore
+    livy.keystore.password: $keystorepassword
+    livy.key-password: $keystorepassword
+
+LIVY3:
+  - config_type: livy3-conf
+    livy.keystore: $keystore
+    livy.keystore.password: $keystorepassword
+    livy.key-password: $keystorepassword
+
+DRUID:
+  - config_type: druid-common
+    druid.client.https.protocol: TLSv1.2
+    druid.client.https.trustStorePassword: $truststorepassword
+    druid.client.https.trustStorePath: $truststore
+    druid.client.https.trustStoreType: jks
+    druid.server.https.certAlias: nifi-cert
+    druid.server.https.keyStorePassword: $keystorepassword
+    druid.server.https.keyStorePath: $keystore
+    druid.server.https.keyStoreType: jks
+    druid.enablePlaintextPort: False
+    druid.enableTlsPort: True
+    druid.extensions.loadList: $druidLoadList
+
+
+IMPALA:
+  - config_type: impala-env
+    client_services_ssl_enabled: True
+    ssl_client_ca_certificate: $pemCert
+    ssl_private_key: $pemKey
+    webserver_private_key_file: $pemKey
+    ssl_server_certificate: $pemCert
+    webserver_certificate_file: $pemCert
+
+
+FLINK:
+  - config_type: flink-conf
+    historyserver.web.ssl.enabled: true
+    security.ssl.internal.enabled: true
+    security.ssl.internal.keystore: $keystore
+    security.ssl.internal.truststore: $truststore
+    security.ssl.internal.key-password: $keystorepassword
+    security.ssl.internal.keystore-password: $keystorepassword
+    security.ssl.internal.truststore-password: $truststorepassword
+    security.ssl.rest.enabled: true
+    security.ssl.rest.keystore: $keystore
+    security.ssl.rest.truststore: $truststore
+    security.ssl.rest.key-password: $keystorepassword
+    security.ssl.rest.keystore-password: $keystorepassword
+    security.ssl.rest.truststore-password: $truststorepassword
+
+  - config_type: flink-log4j
+    security.ssl.key-password: $keystorepassword
+
+KUDU:
+  - config_type: kudu-master-env
+    webserver_certificate_file: $pemCert
+    webserver_private_key_file: $pemKey
+  - config_type: kudu-tablet-env
+    webserver_certificate_file: $pemCert
+    webserver_private_key_file: $pemKey
+
+AIRFLOW:
+  - config_type: airflow-webserver-site
+    enable_ssl: 'True'
+    web_server_ssl_cert: $pemCert
+    web_server_ssl_key: $pemKey
+
+HTTPFS:
+  - config_type: httpfs-site
+    httpfs.ssl.enabled: 'true'
+
+JUPYTER:
+  - config_type: jupyterhub-conf
+    enable_ssl: 'true'
+    JupyterHub_ssl_key: $pemKey
+    JupyterHub_ssl_cert: $pemCert
+
+
+REGISTRY:
+  - config_type: registry-ssl-config
+    registry.keyStorePassword: $keystorepassword
+    registry.keyStorePath: $keystore
+    registry.keyStoreType: JKS
+    registry.trustStorePassword: $truststorepassword
+    registry.trustStorePath: $truststore
+    registry.trustStoreType: JKS
+    registry.ssl.isenabled: True
+
+OOZIE:
+  - config_type: oozie-site
+    oozie.https.enabled: true
+    oozie.https.port: 11443
+    oozie.https.keystore.file: $keystore
+    oozie.https.keystore.pass: $keystorepassword
+    oozie.https.truststore.file: $truststore
+    oozie.https.truststore.pass: $truststorepassword
+    oozie.base.url: $oozieserver
+
+CLICKHOUSE:
+  - config_type: clickhouse-application
+    server_ssl_enabled: true
+    server_ssl_key_alias: nifi-cert
+    server_ssl_keystore: $keystore
+    server_ssl_keystore_password: $keystorepassword
+    server_ssl_keystore_type: JKS
+
+ZOOKEEPER:
+  - config_type: zoo.cfg
+    secureClientPort: 2182
+    serverCnxnFactory: org.apache.zookeeper.server.NettyServerCnxnFactory 
+    ssl.clientAuth: need
+    ssl.keyStore.location: $keystore
+    ssl.keyStore.password: $keystorepassword
+    ssl.keyStore.type: JKS
+    ssl.trustStore.location: $truststore
+    ssl.trustStore.password: $truststorepassword 
+    ssl.trustStore.type: JKS 
+
+NIFI:
+  - config_type: nifi-ambari-config
+    nifi.node.port: 
+
+  - config_type: nifi-properties
+    nifi.web.http.port:
+    nifi.security.keyPasswd: $keystorepassword
+    nifi.security.keystorePasswd: $keystorepassword
+    nifi.security.truststorePasswd: $truststorepassword
+
+  - config_type: nifi-ambari-ssl-config
+    nifi.ssl.isenabled: true
+    nifi.node.ssl.isenabled: true
+    nifi.security.keystore: $keystore
+    nifi.security.keystoreType: jks
+    nifi.security.keystorePasswd: $keystorepassword
+    nifi.security.keyPasswd: $keystorepassword
+    nifi.security.truststore: $truststore
+    nifi.security.truststoreType: jks
+    nifi.security.truststorePasswd: $truststorepassword
+
+  - config_type: ranger-nifi-plugin-properties
+    nifi.authentication: SSL
+    nifi.ssl.keystore: $keystore
+    nifi.ssl.keystorePassword: $keystorepassword
+    nifi.ssl.keystoreType: jks
+    nifi.ssl.truststore: $truststore
+    nifi.ssl.truststoreType: jks
+    nifi.ssl.truststorePassword: $truststorepassword
+
+NIFI_REGISTRY:
+  - config_type: nifi-registry-ambari-config
+    nifi.registry.port:
+
+  - config_type: nifi-registry-ambari-ssl-config
+    nifi.registry.ssl.isenabled: true
+
+  - config_type: nifi-registry-ambari-ssl-config
+    nifi.registry.security.keystore: $keystore
+    nifi.registry.security.keystoreType: jks
+    nifi.registry.security.keystorePasswd: $keystorepassword
+    nifi.registry.security.keyPasswd: $keystorepassword
+    nifi.registry.security.truststore: $truststore
+    nifi.registry.security.truststoreType: jks
+    nifi.registry.security.truststorePasswd: $truststorepassword
+
+  - config_type: nifi-registry-properties
+    nifi.registry.security.keystorePasswd: $keystorepassword
+    nifi.registry.security.keyPasswd: $keystorepassword
+    nifi.registry.security.truststorePasswd: $truststorepassword   
