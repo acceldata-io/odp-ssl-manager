@@ -565,6 +565,26 @@ OOZIE:
     oozie.https.truststore.pass: $truststorepassword
     oozie.base.url: $oozieserver
 
+CLICKHOUSE:
+  - config_type: clickhouse-application
+    server_ssl_enabled: true
+    server_ssl_key_alias: nifi-cert
+    server_ssl_keystore: $keystore
+    server_ssl_keystore_password: $keystorepassword
+    server_ssl_keystore_type: JKS
+
+ZOOKEEPER:
+  - config_type: zoo.cfg
+    secureClientPort: 2182
+    serverCnxnFactory: org.apache.zookeeper.server.NettyServerCnxnFactory 
+    ssl.clientAuth: need
+    ssl.keyStore.location: $keystore
+    ssl.keyStore.password: $keystorepassword
+    ssl.keyStore.type: JKS
+    ssl.trustStore.location: $truststore
+    ssl.trustStore.password: $truststorepassword 
+    ssl.trustStore.type: JKS 
+
 NIFI:
   - config_type: nifi-ambari-config
     nifi.node.port: 
