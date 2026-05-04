@@ -463,6 +463,60 @@ SPARK3:
     spark.ssl.historyServer.port: 18581
     spark.ui.https.enabled: true    
 
+  - config_type: livy3-conf
+    livy.truststore: $keystore
+    livy.truststore.password: $keystorepassword
+    livy.keystore: $keystore
+    livy.keystore.password: $keystorepassword
+    livy.key-password: $keystorepassword    
+
+SPARK3_3_3_3:
+  - config_type: yarn-site
+    spark.authenticate: true
+
+  - config_type: spark3-3.3.3-defaults
+    spark.authenticate: true
+    spark.authenticate.enableSaslEncryption: true
+    spark.ssl.enabled: true
+    spark.ssl.keyPassword: $keystorepassword
+    spark.ssl.keyStore: $keystore
+    spark.ssl.keyStorePassword: $keystorepassword
+    spark.ssl.protocol: TLS
+    spark.ssl.trustStore: $truststore
+    spark.ssl.trustStorePassword: $truststorepassword
+    spark.ssl.historyServer.port: 18581
+    spark.ui.https.enabled: true    
+
+  - config_type: livy3-3.3.3-conf
+    livy.truststore: $keystore
+    livy.truststore.password: $keystorepassword
+    livy.keystore: $keystore
+    livy.keystore.password: $keystorepassword
+    livy.key-password: $keystorepassword    
+
+SPARK3_3_5_1:
+  - config_type: yarn-site
+    spark.authenticate: true
+
+  - config_type: spark3-3.5.1-defaults
+    spark.authenticate: true
+    spark.authenticate.enableSaslEncryption: true
+    spark.ssl.enabled: true
+    spark.ssl.keyPassword: $keystorepassword
+    spark.ssl.keyStore: $keystore
+    spark.ssl.keyStorePassword: $keystorepassword
+    spark.ssl.protocol: TLS
+    spark.ssl.trustStore: $truststore
+    spark.ssl.trustStorePassword: $truststorepassword
+    spark.ssl.historyServer.port: 18581
+    spark.ui.https.enabled: true 
+
+  - config_type: livy3-3.5.1-conf
+    livy.truststore: $keystore
+    livy.truststore.password: $keystorepassword
+    livy.keystore: $keystore
+    livy.keystore.password: $keystorepassword
+    livy.key-password: $keystorepassword    
 
 LIVY:
   - config_type: livy-conf
