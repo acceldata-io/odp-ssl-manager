@@ -278,3 +278,9 @@ FALCON:
 
   - config_type: falcon-env
     falcon_port: 15443
+
+SUPERSET:
+  - config_type: superset
+    SUPERSET_SSL_ENABLED: True
+    SUPERSET_SSL_CERTFILE: $pemCert
+    SUPERSET_SSL_KEYFILE: $pemKey

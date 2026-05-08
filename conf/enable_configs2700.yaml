@@ -688,4 +688,10 @@ NIFI_REGISTRY:
   - config_type: nifi-registry-properties
     nifi.registry.security.keystorePasswd: $keystorepassword
     nifi.registry.security.keyPasswd: $keystorepassword
-    nifi.registry.security.truststorePasswd: $truststorepassword  
+    nifi.registry.security.truststorePasswd: $truststorepassword   
+
+SUPERSET:
+  - config_type: superset
+    SUPERSET_SSL_ENABLED: True
+    SUPERSET_SSL_CERTFILE: $pemCert
+    SUPERSET_SSL_KEYFILE: $pemKey
