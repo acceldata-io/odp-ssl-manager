@@ -279,3 +279,9 @@ NIFI:
 NIFI_REGISTRY:
   - config_type: nifi-registry-ambari-ssl-config
     nifi.registry.ssl.isenabled: true    
+
+SUPERSET:
+  - config_type: superset
+    SUPERSET_SSL_ENABLED: False
+    SUPERSET_SSL_CERTFILE: /etc/security/certificates/cert.pem
+    SUPERSET_SSL_KEYFILE: /etc/security/certificates/key.pem

@@ -201,3 +201,9 @@ RANGERPLUGINS:
     xasecure.policymgr.clientssl.keystore.password: myKeyFilePassword
     xasecure.policymgr.clientssl.truststore: /usr/hdp/current/hadoop-client/conf/ranger-plugin-truststore.jks
     xasecure.policymgr.clientssl.truststore.password: changeit
+
+SUPERSET:
+  - config_type: superset
+    SUPERSET_SSL_ENABLED: False
+    SUPERSET_SSL_CERTFILE: /etc/security/certificates/cert.pem
+    SUPERSET_SSL_KEYFILE: /etc/security/certificates/key.pem
