@@ -22,8 +22,20 @@ while getopts "u:k:" opt; do
     esac
 done
 
-output=$(curl -ksu $USER:$PASSWORD -i -H 'X-Requested-By: ambari' $PROTOCOL://$AMBARISERVER:$PORT/api/v1/clusters)
+# Discover the Ambari endpoint: try HTTP/8080, fall back to HTTPS/8446
+# (Ambari moves to 8446 once its own SSL is enabled)
+output=$(curl -ksu $USER:$PASSWORD -m 10 -i -H 'X-Requested-By: ambari' $PROTOCOL://$AMBARISERVER:$PORT/api/v1/clusters 2>/dev/null)
 CLUSTER=$(echo "$output" | sed -n 's/.*"cluster_name" : "\([^\"]*\)".*/\1/p')
+if [ -z "$CLUSTER" ]; then
+    PROTOCOL=https
+    PORT=8446
+    output=$(curl -ksu $USER:$PASSWORD -m 10 -i -H 'X-Requested-By: ambari' $PROTOCOL://$AMBARISERVER:$PORT/api/v1/clusters 2>/dev/null)
+    CLUSTER=$(echo "$output" | sed -n 's/.*"cluster_name" : "\([^\"]*\)".*/\1/p')
+fi
+if [ -z "$CLUSTER" ]; then
+    echo "ERROR: could not discover cluster from Ambari at $AMBARISERVER (tried http:8080 and https:8446)"
+    exit 1
+fi
 
 # Generate an SSH key pair if it doesn't exist
 if [ ! -f ~/.ssh/id_rsa ]; then
@@ -45,7 +57,11 @@ if ! command -v sshpass > /dev/null; then
 fi
 
 # Collect host names
-HOST_NAMES=$(curl -su admin:admin $PROTOCOL://$AMBARISERVER:$PORT/api/v1/clusters/$CLUSTER/hosts | grep -o '"host_name" : "[^"]*' | awk -F'"' '{print $4}')
+HOST_NAMES=$(curl -ksu admin:admin $PROTOCOL://$AMBARISERVER:$PORT/api/v1/clusters/$CLUSTER/hosts | grep -o '"host_name" : "[^"]*' | awk -F'"' '{print $4}')
+if [ -z "$HOST_NAMES" ]; then
+    echo "ERROR: Ambari returned no hosts for cluster $CLUSTER at $PROTOCOL://$AMBARISERVER:$PORT"
+    exit 1
+fi
 
 # Returns 0 if key-based root login to the host already works
 root_key_works() {
@@ -56,13 +72,22 @@ root_key_works() {
 # user + key and sudo, for hosts where root password auth is not offered.
 bootstrap_root_key() {
     local host=$1
-    local pubkey
+    local pubkey attempt
     pubkey=$(cat ~/.ssh/id_rsa.pub)
-    ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "$BOOTSTRAP_KEY" "$BOOTSTRAP_USER"@"$host" \
-        "sudo mkdir -p /root/.ssh && sudo chmod 700 /root/.ssh && \
-         sudo grep -qxF '$pubkey' /root/.ssh/authorized_keys 2>/dev/null || \
-         echo '$pubkey' | sudo tee -a /root/.ssh/authorized_keys > /dev/null; \
-         sudo chmod 600 /root/.ssh/authorized_keys"
+    # Retry with backoff: modern sshd (9.8+) penalizes source IPs after failed
+    # auth attempts, and our own probes right before this can trigger it.
+    for attempt in 1 2 3; do
+        if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "$BOOTSTRAP_KEY" "$BOOTSTRAP_USER"@"$host" \
+            "sudo mkdir -p /root/.ssh && sudo chmod 700 /root/.ssh && \
+             sudo grep -qxF '$pubkey' /root/.ssh/authorized_keys 2>/dev/null || \
+             echo '$pubkey' | sudo tee -a /root/.ssh/authorized_keys > /dev/null; \
+             sudo chmod 600 /root/.ssh/authorized_keys"; then
+            return 0
+        fi
+        echo "Bootstrap attempt $attempt failed for $host (sshd may be rate-limiting), retrying in 30s..."
+        sleep 30
+    done
+    return 1
 }
 
 FAILED_HOSTS=""
