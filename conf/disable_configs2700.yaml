@@ -285,3 +285,33 @@ SUPERSET:
     SUPERSET_SSL_ENABLED: False
     SUPERSET_SSL_CERTFILE: /etc/security/certificates/cert.pem
     SUPERSET_SSL_KEYFILE: /etc/security/certificates/key.pem
+
+KAFKA4:
+  - config_type: kraft4-broker
+    security.inter.broker.protocol: SASL_PLAINTEXT
+
+NIFI2:
+  - config_type: nifi2-ambari-config
+    nifi.node.port: 9190
+
+  - config_type: nifi2-ambari-ssl-config
+    nifi.node.ssl.isenabled: false
+
+NIFI_REGISTRY2:
+  - config_type: nifi-registry2-ambari-config
+    nifi.registry.port: 62080
+
+  - config_type: nifi-registry2-ambari-ssl-config
+    nifi.registry.ssl.isenabled: false
+
+SOLR:
+  - config_type: solr-config
+    solr_ssl_enabled: false
+
+TRINO_GATEWAY:
+  - config_type: trino-gateway-ssl
+    ssl_enabled: false
+
+ATLAS:
+  - config_type: application-properties
+    atlas.enableTLS: false
