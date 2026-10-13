@@ -789,9 +789,8 @@ ATLAS:
   - config_type: application-properties
     atlas.enableTLS: true
     keystore.file: $keystore
-    keystore.password: $keystorepassword
     truststore.file: $truststore
-    truststore.password: $truststorepassword
+    cert.stores.credential.provider.path: jceks://file/etc/security/certificates/atlas-ssl.jceks
 
 CELEBORN:
   - config_type: celeborn-security

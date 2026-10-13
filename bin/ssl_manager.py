@@ -40,6 +40,7 @@ KEYSTORE_LOCATION = os.path.join(CERT_DIR, 'keystore.jks')
 TRUSTSTORE_LOCATION = os.path.join(CERT_DIR, 'truststore.jks')
 AMBARI_P12_LOCATION = os.path.join(CERT_DIR, 'ambari-keystore.p12')
 P12_LOCATION = os.path.join(CERT_DIR, 'keystore.p12')
+ATLAS_JCEKS_LOCATION = os.path.join(CERT_DIR, 'atlas-ssl.jceks')
 PEM_KEY_LOCATION = os.path.join(CERT_DIR, 'key.pem')
 PEM_CERT_LOCATION = os.path.join(CERT_DIR, 'cert.pem')
 
@@ -71,6 +72,10 @@ export OOZIE_CLIENT_OPTS="${OOZIE_CLIENT_OPTS} -Doozie.connection.retry.count=5 
 
     Note: Make sure Ext JS library is Installed and UI is already enabled.
     """
+ATLAS_UI = \
+    """
+    Store passwords are read from the credential store {0} created on all hosts. Restart Atlas from Ambari.
+    """.format(ATLAS_JCEKS_LOCATION)
 DISABLE_OOZIE_UI = \
     """
     Select Oozie > Configs, then select Advanced oozie-env and remove the following properties:
@@ -540,6 +545,19 @@ def copy_certs(properties, ssh_key, scpusername, ownership):
             execute_remote_commands(ssh_key, userhost, export_command, delete_command_cacerts, delete_command_ambari, import_command_cacerts, import_command_ambari, create_pkcs12, create_pem_key, create_pem_cert, add_ambari_ssl_props)
         else:
             logger.error("Could not determine OS type for host {0}. Skipping keytool operations.".format(userhost))
+
+        # Atlas reads the store passwords only from a credential store; skipped on hosts without the hadoop client
+        create_atlas_jceks = ("command -v hadoop >/dev/null && rm -f {0} && "
+                              "hadoop credential create keystore.password -value {1} -provider jceks://file{0} && "
+                              "hadoop credential create truststore.password -value {2} -provider jceks://file{0} && "
+                              "hadoop credential create password -value {1} -provider jceks://file{0} && "
+                              "chmod 640 {0} && (chown atlas:hadoop {0} 2>/dev/null || true)"
+                              ).format(ATLAS_JCEKS_LOCATION, keystorepassword.strip(), truststorepassword.strip())
+        logger.info("Creating Atlas credential store on host {0}".format(host))
+        subprocess.Popen(
+            "ssh -o StrictHostKeyChecking=no -i {0} {1} '{2}'".format(ssh_key, userhost, create_atlas_jceks),
+            shell=True
+        ).communicate()
 
 
     return
