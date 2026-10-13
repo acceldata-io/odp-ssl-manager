@@ -808,5 +808,6 @@ SEATUNNEL:
     key_store_path: $keystore
     key_store_password: $keystorepassword
     key_manager_password: $keystorepassword
-    trust_store_path: $truststore
-    trust_store_password: $truststorepassword
+    # a trust store makes SeaTunnel require client certificates (mutual TLS), keep it empty
+    trust_store_path: ""
+    trust_store_password: ""
