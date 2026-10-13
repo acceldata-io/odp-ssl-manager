@@ -792,3 +792,22 @@ ATLAS:
     keystore.password: $keystorepassword
     truststore.file: $truststore
     truststore.password: $truststorepassword
+
+CELEBORN:
+  - config_type: celeborn-security
+    celeborn.master.http.ssl.enabled: true
+    celeborn.master.http.ssl.keystore.path: $keystore
+    celeborn.master.http.ssl.keystore.password: $keystorepassword
+    celeborn.worker.http.ssl.enabled: true
+    celeborn.worker.http.ssl.keystore.path: $keystore
+    celeborn.worker.http.ssl.keystore.password: $keystorepassword
+
+SEATUNNEL:
+  - config_type: seatunnel-yaml
+    enable_https: true
+    enable_http: false
+    key_store_path: $keystore
+    key_store_password: $keystorepassword
+    key_manager_password: $keystorepassword
+    trust_store_path: $truststore
+    trust_store_password: $truststorepassword

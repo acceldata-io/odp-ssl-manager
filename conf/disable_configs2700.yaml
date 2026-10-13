@@ -315,3 +315,13 @@ TRINO_GATEWAY:
 ATLAS:
   - config_type: application-properties
     atlas.enableTLS: false
+
+CELEBORN:
+  - config_type: celeborn-security
+    celeborn.master.http.ssl.enabled: false
+    celeborn.worker.http.ssl.enabled: false
+
+SEATUNNEL:
+  - config_type: seatunnel-yaml
+    enable_https: false
+    enable_http: true
