@@ -1,0 +1,127 @@
+# TLS enablement runbook (ODP 3.4, Ambari, Kerberos or not)
+
+Ticket: ODP-8345 (alerts, Kafka Connect/MirrorMaker, Livy) and the ODP-8311 ssl_manager branch.
+Reference cluster: rhel9311 (3 hosts, Ambari 3, Kerberos ADSRE.COM, NameNode HA, Ranger HTTPS only).
+
+## 1. How SSL is turned on
+
+1. Jenkins job `SSL_Setup` downloads `ssl_setup.yml` from `mirror.odp.acceldata.dev/scripts` and runs it on the
+   Ambari host with `SERVICES=all UI=all GIT_BRANCH=<odp-ssl-manager branch>`.
+2. The playbook runs `complete_automated_ssl_setup_hetzner.sh`, which clones `odp-ssl-manager` at `GIT_BRANCH`
+   and calls `bin/ssl_manager.py --ca --enable-ssl --service=all --ui=all`.
+3. The CA is `HDPCA`. Files end up in `/etc/security/certificates` on every host:
+   `keystore.jks`, `truststore.jks`, `keystore.p12`, `cert.pem`, `key.pem` (unencrypted PEM, alias `nifi-cert`).
+4. `ssl_manager.py` reads `conf/enable_configs2700.yaml`, replaces the placeholders
+   (`$keystore $truststore $keystorepassword $truststorepassword $pemCert $pemKey $p12_location $rangerPolicyUrl ...`)
+   and writes the result to Ambari config types. It only touches services that are installed
+   (`ALL_SERVICES`/`ALL_UI` are intersected with the installed list), so a new entry is safe on clusters without the service.
+5. After the run, restart the changed services (the tool does not).
+
+To use these changes: merge the commits into the branch the job passes as `GIT_BRANCH` (ODP-8311). No Jenkins or
+playbook edit is needed, the job already passes `all`.
+
+To undo: `--disable-ssl` uses `conf/disable_configs2700.yaml` (entries were added for the new services).
+
+## 2. What was added in this round
+
+| Service | Config type | Effect |
+|---|---|---|
+| Livy3 (SPARK3, SPARK3_x, LIVY3) | `livy3*-conf` | `livy.ssl=true`. Without it Livy kept serving HTTP on the SSL port and the Spark3 Livy alert went CRITICAL |
+| Spark4 history server + Livy4 | `spark4-defaults`, `livy4-conf` | `spark.ssl.*`, `spark.ui.https.enabled`, `livy.ssl=true`, keystores |
+| Hive Server2 web UI (10002) | `hive-site` | `hive.server2.webui.use.ssl` + keystore |
+| Spark3 Thrift server (10016) | `spark3-hive-site-override` | `hive.server2.use.SSL` + keystore |
+| Airflow3 web | `airflow3-webserver-site` | `enable_ssl`, PEM cert/key |
+| Hue | `hue-desktop-site`, `hue-hive-site` | PEM cert/key, CA bundle, `ssl_password` (see 4.2) |
+| MLflow | `mlflow-conf` | new mpack options `mlflow.ssl.enabled/certfile/keyfile` |
+| ClickHouse | `clickhouse-env` | `enable_ssl`, cert, key, CA (the old `clickhouse-application` type does not exist in this stack) |
+| Trino | `trino-env` | HDPCA keystore instead of the per-host self-signed `/etc/trino/trino.jks` |
+| Ranger plugins Atlas, Knox, Trino | `ranger-*-security`, `ranger-trino-policymgr-ssl` | policy URL to `https://<ranger>:6182`, Trino truststore. Before this they kept polling the plain URL and stayed on an old policy version |
+
+`ssl_manager.py` change: a config type that is missing in the stack is skipped with a warning instead of aborting the
+rest of that service.
+
+## 3. mpack changes (ambari-mpacks, branch ODP-8345)
+
+* **Kafka3 / Kafka4 Connect and MirrorMaker2.** When the brokers listen on SSL or SASL_SSL, the generated
+  Connect and MM2 configs follow the broker: security protocol and truststore *location* are copied, the keystore only
+  if the broker requires client auth. Values set by the operator are kept, blank `ssl.*` entries are removed,
+  PLAINTEXT/SASL_PLAINTEXT brokers get exactly the old output. Passwords are not copied (they only exist as env vars if
+  the stored env content exports them; copying gave "Password verification failed").
+* **Alerts.** `atlas_server_process` and `seatunnel_master_webui_port` are WEB alerts using the service HTTPS property.
+  Ambari does not refresh existing alert definitions on upgrade. For a running cluster update them once:
+  `PUT /api/v1/clusters/<c>/alert_definitions/<id>` with the new source (Atlas id 12, SeaTunnel id 172 on rhel9311).
+* **MLflow.** `mlflow server --uvicorn-opts "--ssl-certfile .. --ssl-keyfile .."` when enabled, CORS origins follow the
+  scheme, the service check probes https, the quick link switches to https. Default is off.
+
+Ambari reads quick links and stack definitions at server start. After deploying an mpack file by hand, restart
+`ambari-server` (this also clears the temporary KDC admin credential, re-add it before Kerberos operations).
+
+## 4. Manual steps for an existing cluster (what was done on rhel9311)
+
+Use the Ambari UI, or `configs.py` / the REST API, then restart the service.
+
+### 4.1 Generic pattern
+Keystore `/etc/security/certificates/keystore.jks`, truststore `.../truststore.jks`, PEM `.../cert.pem` + `.../key.pem`.
+Password is the keystore password from `ca.properties` (do not write it into tickets).
+
+### 4.2 Hue
+`hue-desktop-site`: `ssl_enable=true`, `ssl_certificate=<cert.pem>`, `ssl_private_key=<key.pem>`,
+`ssl_cacerts=<cert.pem>`, **`ssl_password=<keystore password>`**.
+`hue-hive-site`: `ssl_cacerts=<cert.pem>`.
+Why `ssl_password` matters: the Hue mpack writes `ssl_password_script` (a credential store lookup of alias `ssl`) into
+hue.ini. If no password is configured the alias does not exist, the lookup fails and `runcpserver` exits silently
+with code 0 (no listener on 8888, nothing in error.log). Setting `ssl_password` makes the mpack create the alias.
+Check: `curl -k -o /dev/null -w '%{http_code}' https://<hue-host>:8888/` returns 302.
+
+### 4.3 MLflow
+`mlflow-conf`: `mlflow.ssl.enabled=true`, `mlflow.ssl.certfile`, `mlflow.ssl.keyfile`. Restart MLflow.
+MLflow rejects any Host header that is not in `mlflow.allowed.hosts` (`Invalid Host header - possible DNS rebinding
+attack detected`). The mpack now always adds the host's own short name, FQDN and IP (`<name>:5000`) to the allowed hosts
+and `https://<name>:5000` to the CORS origins, so the UI opens by name or by IP. Names behind a load balancer or Knox
+must be added to `mlflow.allowed.hosts` by hand. After changing the mpack file on a live cluster restart
+`ambari-server` so the quick link (`https://<host>:5000/`) is re-read, then hard-refresh the Ambari page.
+
+### 4.4 Spark4 / Livy4, Airflow3, HS2 UI, Spark3 thrift, ClickHouse, Trino
+Set the properties from the table in section 2, restart the service.
+
+### 4.5 Ranger plugins that were stuck (Atlas, Knox, Trino)
+Set `ranger.plugin.<svc>.policy.rest.url` to `https://<ranger-host>:6182`, give the plugin a truststore that has HDPCA
+(Knox also needs its keystore, Trino its truststore in the JDK cacerts), restart. Verify in Ranger
+Audit > Plugins that the policy version equals the repository version.
+
+## 5. Verification
+
+```
+# every listening non-loopback port, TLS or plain, with issuer
+for h in <hosts>; do ssh $h 'bash -s' < tlsprobe.sh; done
+curl -k -o /dev/null -w '%{http_code}\n' https://<host>:<port>/       # per UI
+ranger Audit > Plugins                                                  # policy version per plugin
+Ambari alerts: no CRITICAL; Service Check per service
+Kafka: kafka-broker-api-versions --bootstrap-server <h>:6669 --command-config <client.properties>
+Connect REST: curl http://<h>:8083/  (3.x)  and :8084 (4.x)
+```
+
+Result on rhel9311 after this round: 102 TLS ports (98 signed by HDPCA).
+
+## 6. Still plain or self-signed (not covered)
+
+| Item | Why / next step |
+|---|---|
+| ZooKeeper 2181 | 2182 (TLS) exists; closing 2181 needs every client moved first. Decision pending |
+| Knox 8443 | TLS, but self-signed. Needs the gateway identity keystore replaced with the HDPCA cert (`gateway.jks` password = master secret) |
+| Trino 9097, ClickHouse 8123 | plain listener stays open next to the TLS one; needs a product option to disable it |
+| Pinot broker/server/minion, controller 9000 | only the controller has TLS settings in the mpack |
+| YARN ATS HBase (17000/17010) | no TLS option in the mpack |
+| Kafka3/4 Connect REST (8083/8084) | plain REST; Connect to brokers is TLS |
+| Hive Metastore thrift, HDFS/YARN RPC | RPC protocols, protected by Kerberos, not TLS |
+
+## 7. What was and was not tested
+
+* Tested live on rhel9311 (Kerberos **and** SSL): everything in section 2, Kafka3/4 Connect and MM2 running and
+  committing, Atlas/SeaTunnel/Livy alerts OK, MLflow service check passes.
+* Tested only by rendering/unit matrix: Kafka Connect/MM2 for PLAINTEXT, SASL_PLAINTEXT, SSL, SASL_SSL.
+* **Not tested on a real cluster:** SSL without Kerberos, Kerberos without SSL, neither. The new settings are
+  guarded (off by default, only applied when the broker/service already uses TLS), but run `SSL_Setup` on a
+  non-Kerberos cluster and a fresh install before relying on it.
+* Open follow-ups: the Hue/Knox/Pinot/ATS items above, Jenkins `SSL_Setup` job stores an SSH private key as a
+  default parameter value (visible in the job config), consider moving it to a credential.
