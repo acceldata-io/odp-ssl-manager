@@ -474,6 +474,7 @@ SPARK3:
     spark.ui.https.enabled: true    
 
   - config_type: livy3-conf
+    livy.ssl: true
     livy.truststore: $keystore
     livy.truststore.password: $keystorepassword
     livy.keystore: $keystore
@@ -498,6 +499,7 @@ SPARK3_3_3_3:
     spark.ui.https.enabled: true    
 
   - config_type: livy3-3.3.3-conf
+    livy.ssl: true
     livy.truststore: $keystore
     livy.truststore.password: $keystorepassword
     livy.keystore: $keystore
@@ -522,6 +524,7 @@ SPARK3_3_5_1:
     spark.ui.https.enabled: true 
 
   - config_type: livy3-3.5.1-conf
+    livy.ssl: true
     livy.truststore: $keystore
     livy.truststore.password: $keystorepassword
     livy.keystore: $keystore
@@ -536,6 +539,7 @@ LIVY:
 
 LIVY3:
   - config_type: livy3-conf
+    livy.ssl: true
     livy.keystore: $keystore
     livy.keystore.password: $keystorepassword
     livy.key-password: $keystorepassword
