@@ -158,11 +158,32 @@ Knox 2.1 can read an external keystore. On every Knox host, as the knox user, st
 `gateway.tls.key.passphrase.alias=gateway-identity-passphrase`, restart Knox. Check:
 `openssl s_client -connect <knox>:8443 | openssl x509 -noout -issuer` shows `CN=HDPCA`.
 
-### 4a-3. Ranger Admin Audit tab after SSL (not fixed)
-The Access audit page returns `Error running solr query ... Could not find a healthy node to handle the request`.
-Ranger Admin reads audits through ZooKeeper (`ranger.audit.solr.zookeepers=.../infra-solr`) while Infra Solr is now
-HTTPS only (8886). Likely causes to check: the Solr `urlScheme` cluster property in ZooKeeper and the JVM truststore
-of Ranger Admin. Plugins keep writing audits to Solr.
+### 4a-3. Ranger Admin Audit tab and Atlas indexes after SSL (fixed by restarting Infra Solr)
+Symptom: Ranger Audit tab `Error running solr query ... Could not find a healthy node to handle the request`.
+Cause: after SSL was enabled the single replica of `ranger_audits`, `edge_index`, `vertex_index` and `fulltext_index`
+stayed marked `"state":"down"` in ZooKeeper (`/infra-solr/collections/<c>/state.json`) although the node was live and
+serving writes. At the first start after SSL the core logged
+`There is conflicting information about the leader of shard: shard1 our state says:http://... but zookeeper says:https://...`
+and never republished itself as active, so SolrJ clients (Ranger Admin) skip the replica.
+Fix: restart Ambari Infra Solr (all hosts) once SSL is on; all replicas turned `active` and the Audit tab works.
+Check: `zkCli.sh -server <zk>:2181 get /infra-solr/collections/ranger_audits/state.json` shows `"state":"active"`.
+Add this restart to the SSL procedure after `AMBARI_INFRA_SOLR` is switched to https.
+
+### 4a-4. Plugins whose audit writer does not see core-site (Trino, NiFi, NiFi Registry)
+Their HDFS audit writer builds its own Hadoop configuration from `xasecure.audit.destination.hdfs.config.*`
+(Ambari passes only the HA keys). With `hadoop.rpc.protection=privacy` on the cluster, audits to HDFS fail with
+`SaslException: No common protection layer between client and server`. Set in `ranger-trino-audit`,
+`ranger-nifi2-audit`, `ranger-nifi-registry2-audit`:
+`xasecure.audit.destination.hdfs.config.hadoop.rpc.protection=privacy` and
+`xasecure.audit.destination.hdfs.config.dfs.data.transfer.protection=authentication,privacy`, restart the service.
+Proper fix: Ambari's audit config generator (`setup_ranger_plugin_xml.py`) should also pass these two keys from core-site/hdfs-site.
+
+### 4a-5. Open: NiFi
+* NiFi Ranger plugin audit to Solr never connects: `NoSuchMethodError: CloudSolrClient$Builder.withHttpClient(HttpClient)`
+  (SolrJ on the NiFi plugin classpath does not match Ranger's audit library). Not TLS related.
+* NiFi repo Test Connection still returns `403 Authentication Proxy Server not trusted` for the Ranger Admin client
+  certificate `CN=rhel93111, OU=HDP` even with the read and `/proxy` write policies loaded; cause not found.
+  NiFi Registry passes.
 
 ### 4b. Things that look wrong but are not
 * **Knox plugin on an old policy version after a restart.** It initialises on the first request through the
