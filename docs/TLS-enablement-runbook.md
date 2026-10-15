@@ -122,11 +122,47 @@ Also `atlas.rest.address` stays `http://...:31000` unless the SSL tool rewrites 
 export RANGER_PASSWORD=<ranger admin password>
 bin/update_ranger_repos.py --ranger https://<ranger-host>:6182 --user admin --kafka-protocol SASL_SSL        # dry run
 bin/update_ranger_repos.py --ranger https://<ranger-host>:6182 --user admin --kafka-protocol SASL_SSL --apply
+bin/update_ranger_repos.py --ranger ... --set <hdfs repo>:hadoop.rpc.protection=privacy --apply      # exact values
 ```
 Port map used: Atlas 31000->31443, YARN 8088->8090, KMS 9292->9393, Registry 7788->7790, NiFi Registry 62080->62443,
 NiFi 9190->9191, Solr same port with https. Use `--kafka-protocol SSL` on clusters without Kerberos.
 NiFi repos need the NiFi client certificate identity; Test Connection can still fail there after the URL fix.
 Tracked in ODP-8349.
+
+**Result on rhel9311 (16 repos):** 14 pass Test Connection after the steps below; NiFi and NiFi Registry connect over
+TLS but get `403 No applicable policies` until the identity of the Ranger Admin client certificate
+(`CN=<ranger-host>, OU=HDP`) has a policy on `/resources` (NiFi) / `/policies` (NiFi Registry).
+
+Settings that must match the cluster, set with `--set REPO:KEY=VALUE`:
+* HDFS repo `hadoop.rpc.protection` = the value of `core-site` `hadoop.rpc.protection` (privacy here). With
+  `authentication` the lookup fails with `SaslException: No common protection layer between client and server`.
+* NiFi / NiFi Registry repo: `nifi.authentication=SSL`, `nifi.ssl.keystore/keystoreType/keystorePassword/truststore/...`
+  (Ranger Admin host paths). Without them the TLS call cannot be made.
+
+### 4a-1. Trino: workers must trust the coordinator certificate
+Switching `trino-env` `ssl_keystore` to the HDPCA keystore makes every node present an HDPCA certificate, but Trino
+validates with the JDK `cacerts` (`http-server.https.truststore.path`), which has no HDPCA. Symptom: workers log
+`Error announcing node state to https://<coordinator>:9098/v1/announce`, the coordinator has no workers
+(`node-scheduler.include-coordinator=False`) and every query, including Ranger Test Connection, stays QUEUED.
+Fix, on every Trino host, then restart Trino:
+`keytool -importcert -noprompt -alias hdpca -file hdpca.pem -keystore /opt/java25/lib/security/cacerts -storepass <cacerts password>`
+(`hdpca.pem` is exported from `/etc/security/certificates/truststore.jks`).
+
+### 4a-2. Knox: use the HDPCA certificate instead of the self-signed gateway identity
+Ranger Admin cannot validate the self-signed gateway certificate (Test Connection: `javax.net.ssl...`).
+Knox 2.1 can read an external keystore. On every Knox host, as the knox user, store the keystore password:
+`knoxcli.sh create-alias gateway-identity-keystore-password --value <keystore password>` and the same for
+`gateway-identity-passphrase`. In `gateway-site` set `gateway.tls.keystore.path=/etc/security/certificates/keystore.jks`,
+`gateway.tls.keystore.type=JKS`, `gateway.tls.key.alias=nifi-cert`,
+`gateway.tls.keystore.password.alias=gateway-identity-keystore-password`,
+`gateway.tls.key.passphrase.alias=gateway-identity-passphrase`, restart Knox. Check:
+`openssl s_client -connect <knox>:8443 | openssl x509 -noout -issuer` shows `CN=HDPCA`.
+
+### 4a-3. Ranger Admin Audit tab after SSL (not fixed)
+The Access audit page returns `Error running solr query ... Could not find a healthy node to handle the request`.
+Ranger Admin reads audits through ZooKeeper (`ranger.audit.solr.zookeepers=.../infra-solr`) while Infra Solr is now
+HTTPS only (8886). Likely causes to check: the Solr `urlScheme` cluster property in ZooKeeper and the JVM truststore
+of Ranger Admin. Plugins keep writing audits to Solr.
 
 ### 4b. Things that look wrong but are not
 * **Knox plugin on an old policy version after a restart.** It initialises on the first request through the

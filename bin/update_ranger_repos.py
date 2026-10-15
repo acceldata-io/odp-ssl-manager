@@ -72,6 +72,9 @@ def main():
     ap.add_argument("--kafka-protocol", default="", help="security.protocol to set on kafka repos (SASL_SSL, SSL)")
     ap.add_argument("--truststore", default="/etc/security/certificates/truststore.jks",
                     help="truststore path on the Ranger Admin host, used for kafka SSL lookups")
+    ap.add_argument("--set", action="append", default=[], metavar="REPO:KEY=VALUE",
+                    help="set one repo config key to an exact value, e.g. rhel9311_hadoop:hadoop.rpc.protection=privacy "
+                         "(repeatable); use it for settings that must match the cluster, like the HDFS RPC protection")
     ap.add_argument("--apply", action="store_true", help="write the changes (default is a dry run)")
     a = ap.parse_args()
 
@@ -87,11 +90,20 @@ def main():
                                      data=json.dumps(body).encode() if body is not None else None)
         return json.loads(urllib.request.urlopen(req, context=ctx, timeout=60).read() or b"{}")
 
+    explicit = {}
+    for item in a.set:
+        repo, _, kv = item.partition(":")
+        key, _, value = kv.partition("=")
+        if not repo or not key:
+            sys.exit("--set needs REPO:KEY=VALUE, got %r" % item)
+        explicit.setdefault(repo, {})[key] = value
+
     changed = 0
     for svc in sorted(call("GET", "/service/public/v2/api/service"), key=lambda s: s["name"]):
         if svc["name"].endswith("_tag"):
             continue
         new = desired(svc, a.truststore, a.kafka_protocol)
+        new.update({k: v for k, v in explicit.get(svc["name"], {}).items() if svc.get("configs", {}).get(k) != v})
         if not new:
             continue
         changed += 1
