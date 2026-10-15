@@ -20,10 +20,10 @@ CA_DIR = os.getcwd()
 CA_CONF_DIR = "conf"
 
 #####
-ALL_SERVICES = ['HDFS', 'MRSHUFFLE', 'TEZ', 'HIVE', 'KAFKA', 'KAFKA3', 'RANGER', 'RANGER_KMS', 'SPARK2', 'SPARK3','SPARK3_3_5_1','SPARK3_3_3_3','DRUID' ,'IMPALA' ,'OZONE' ,'CRUISE_CONTROL' ,'CRUISE_CONTROL3','FLINK','LIVY','LIVY3','HTTPFS','KAFKA_CONNECT','KAFKA3_CONNECT','JUPYTER','OOZIE','PINOT','KUDU','CLICKHOUSE','ZOOKEEPER','KAFKA4']
+ALL_SERVICES = ['HDFS', 'MRSHUFFLE', 'TEZ', 'HIVE', 'KAFKA', 'KAFKA3', 'RANGER', 'RANGER_KMS', 'SPARK2', 'SPARK3','SPARK3_3_5_1','SPARK3_3_3_3','DRUID' ,'IMPALA' ,'OZONE' ,'CRUISE_CONTROL' ,'CRUISE_CONTROL3','FLINK','LIVY','LIVY3','HTTPFS','KAFKA_CONNECT','KAFKA3_CONNECT','JUPYTER','OOZIE','PINOT','KUDU','CLICKHOUSE','ZOOKEEPER','KAFKA4','SPARK4','TRINO']
 RANGER = ['RANGERADMIN', 'RANGERPLUGINS']
 
-ALL_UI = ['HDFSUI', 'YARN', 'MAPREDUCE2UI', 'HBASE', 'OOZIE', 'AMBARI_INFRA', 'AMBARI_INFRA_SOLR', 'ATLAS', 'ZEPPELIN', 'NIFI', 'NIFI_REGISTRY','AIRFLOW','REGISTRY','HTTPFS', 'SUPERSET', 'NIFI2', 'NIFI_REGISTRY2', 'SOLR', 'TRINO_GATEWAY', 'CELEBORN', 'SEATUNNEL']
+ALL_UI = ['HDFSUI', 'YARN', 'MAPREDUCE2UI', 'HBASE', 'OOZIE', 'AMBARI_INFRA', 'AMBARI_INFRA_SOLR', 'ATLAS', 'ZEPPELIN', 'NIFI', 'NIFI_REGISTRY','AIRFLOW','REGISTRY','HTTPFS', 'SUPERSET', 'NIFI2', 'NIFI_REGISTRY2', 'SOLR', 'TRINO_GATEWAY', 'CELEBORN', 'SEATUNNEL', 'AIRFLOW3', 'HUE', 'MLFLOW']
 AMBARI = ['AMBARIUI']
 #####
 
@@ -271,8 +271,9 @@ def update_configs_ambari(services, accessor, cluster, conf_file):
             try:
                 config = get_configs(accessor, cluster, config_type)
             except Exception:
-                logger.warn("Unable to get configs for config_type:{0} from Ambari".format(config_type))
-                return 1
+                # this stack does not have that config type (service version differs): skip it, keep going
+                logger.warn("Unable to get configs for config_type:{0} from Ambari, skipping".format(config_type))
+                continue
             for k in section:
                 if section[k] == "$keystore":
                     section[k] = KEYSTORE_LOCATION

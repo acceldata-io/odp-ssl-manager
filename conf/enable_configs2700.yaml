@@ -281,6 +281,9 @@ HIVE:
     hive.server2.use.SSL: true
     hive.server2.keystore.path: $keystore
     hive.server2.keystore.password: $keystorepassword
+    hive.server2.webui.use.ssl: true
+    hive.server2.webui.keystore.path: $keystore
+    hive.server2.webui.keystore.password: $keystorepassword
 
   - config_type: ranger-hive-security
     ranger.plugin.hive.policy.rest.url: $rangerPolicyUrl
@@ -414,6 +417,21 @@ RANGERPLUGINS:
     xasecure.policymgr.clientssl.keystore.password: $keystorepassword
     xasecure.policymgr.clientssl.truststore: $truststore
     xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  # Trino's plugin only needs to trust Ranger Admin; its Jersey client rejects a keystore without owner.for.certificate
+  - config_type: ranger-trino-policymgr-ssl
+    xasecure.policymgr.clientssl.truststore: $truststore
+    xasecure.policymgr.clientssl.truststore.password: $truststorepassword
+
+  # Without these the plugins keep polling the plain Ranger URL and stay on the old policy version
+  - config_type: ranger-atlas-security
+    ranger.plugin.atlas.policy.rest.url: $rangerPolicyUrl
+
+  - config_type: ranger-knox-security
+    ranger.plugin.knox.policy.rest.url: $rangerPolicyUrl
+
+  - config_type: ranger-trino-security
+    ranger.plugin.trino.policy.rest.url: $rangerPolicyUrl
     
 HBASE:
   - config_type: hbase-site
@@ -480,6 +498,11 @@ SPARK3:
     livy.keystore: $keystore
     livy.keystore.password: $keystorepassword
     livy.key-password: $keystorepassword    
+
+  - config_type: spark3-hive-site-override
+    hive.server2.use.SSL: true
+    hive.server2.keystore.path: $keystore
+    hive.server2.keystore.password: $keystorepassword
 
 SPARK3_3_3_3:
   - config_type: yarn-site
@@ -640,6 +663,12 @@ CLICKHOUSE:
     server_ssl_keystore: $keystore
     server_ssl_keystore_password: $keystorepassword
     server_ssl_keystore_type: JKS
+
+  - config_type: clickhouse-env
+    enable_ssl: true
+    certificate_file: $pemCert
+    private_key_file: $pemKey
+    ca_config_file: $pemCert
 
 ZOOKEEPER:
   - config_type: zoo.cfg
@@ -815,3 +844,52 @@ SEATUNNEL:
     # a trust store makes SeaTunnel require client certificates (mutual TLS), keep it empty
     trust_store_path: ""
     trust_store_password: ""
+
+AIRFLOW3:
+  - config_type: airflow3-webserver-site
+    enable_ssl: 'True'
+    web_server_ssl_cert: $pemCert
+    web_server_ssl_key: $pemKey
+
+HUE:
+  - config_type: hue-desktop-site
+    ssl_enable: true
+    ssl_certificate: $pemCert
+    ssl_private_key: $pemKey
+    ssl_cacerts: $pemCert
+    # the mpack renders ssl_password_script only for the credential store alias this creates
+    ssl_password: $keystorepassword
+
+  - config_type: hue-hive-site
+    ssl_cacerts: $pemCert
+
+MLFLOW:
+  - config_type: mlflow-conf
+    mlflow.ssl.enabled: true
+    mlflow.ssl.certfile: $pemCert
+    mlflow.ssl.keyfile: $pemKey
+
+SPARK4:
+  - config_type: spark4-defaults
+    spark.ssl.enabled: true
+    spark.ui.https.enabled: true
+    spark.ssl.protocol: TLS
+    spark.ssl.keyStore: $keystore
+    spark.ssl.keyStorePassword: $keystorepassword
+    spark.ssl.keyPassword: $keystorepassword
+    spark.ssl.trustStore: $truststore
+    spark.ssl.trustStorePassword: $truststorepassword
+
+  - config_type: livy4-conf
+    livy.ssl: true
+    livy.keystore: $keystore
+    livy.keystore.password: $keystorepassword
+    livy.key-password: $keystorepassword
+    livy.truststore: $truststore
+    livy.truststore.password: $truststorepassword
+
+TRINO:
+  # the default is a per-host self-signed /etc/trino/trino.jks that clients do not trust
+  - config_type: trino-env
+    ssl_keystore: $keystore
+    ssl_keystore_password: $keystorepassword

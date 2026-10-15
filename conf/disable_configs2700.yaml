@@ -325,3 +325,30 @@ SEATUNNEL:
   - config_type: seatunnel-yaml
     enable_https: false
     enable_http: true
+
+AIRFLOW3:
+  - config_type: airflow3-webserver-site
+    enable_ssl: 'False'
+
+HUE:
+  - config_type: hue-desktop-site
+    ssl_enable: false
+    ssl_certificate: ''
+    ssl_private_key: ''
+    ssl_password: ''
+
+MLFLOW:
+  - config_type: mlflow-conf
+    mlflow.ssl.enabled: false
+
+SPARK4:
+  - config_type: spark4-defaults
+    spark.ssl.enabled: false
+    spark.ui.https.enabled: false
+
+  - config_type: livy4-conf
+    livy.ssl: false
+
+CLICKHOUSE:
+  - config_type: clickhouse-env
+    enable_ssl: false
