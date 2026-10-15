@@ -821,6 +821,8 @@ TRINO_GATEWAY:
 ATLAS:
   - config_type: application-properties
     atlas.enableTLS: true
+    # still http://...:31000 otherwise, and the Ranger Atlas repo and the Atlas hooks read it
+    atlas.rest.address: $atlasRestAddress
     keystore.file: $keystore
     truststore.file: $truststore
     cert.stores.credential.provider.path: jceks://file/etc/security/certificates/atlas-ssl.jceks

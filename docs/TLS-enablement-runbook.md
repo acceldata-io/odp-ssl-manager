@@ -56,6 +56,29 @@ rest of that service.
 Ambari reads quick links and stack definitions at server start. After deploying an mpack file by hand, restart
 `ambari-server` (this also clears the temporary KDC admin credential, re-add it before Kerberos operations).
 
+## 3a. Kafka3 / Kafka4, Kafka Connect, MirrorMaker2 (step by step)
+
+1. **Brokers.** `SSL_Setup` sets, in `kafka3-broker` / `kraft4-broker`: `security.inter.broker.protocol=SASL_SSL` (SSL
+   when the cluster is not Kerberos), `ssl.keystore.location/password`, `ssl.key.password`,
+   `ssl.truststore.location/password`. Listener ports on rhel9311: Kafka3 6669, Kafka4 7001.
+2. **Restart the brokers** (rolling), then check:
+   `kafka-broker-api-versions.sh --bootstrap-server <host>:6669 --command-config client.properties`
+   with `security.protocol=SASL_SSL`, `sasl.mechanism=GSSAPI`, `sasl.kerberos.service.name=kafka`,
+   `ssl.truststore.location=/etc/security/certificates/truststore.jks` (no password needed to read certificates).
+3. **Connect (8083 / 8084) and MirrorMaker2.** Nothing to set by hand. With the ODP-8345 mpack the generated
+   `connect-distributed.properties` / `connect-mirror-maker2.properties` copy the broker protocol and the truststore
+   *location* when the brokers use SSL/SASL_SSL (keystore only if the broker requires client auth, passwords are
+   not copied). Blank `ssl.*` lines are removed. Restart Connect and MirrorMaker2 after the brokers.
+   Check: `curl http://<host>:8083/` (Kafka3) and `:8084` (Kafka4) return 200; MirrorMaker2 log shows
+   offsets being committed (`WorkerSourceTask{id=MirrorHeartbeatConnector-0} Committing offsets`).
+4. **Ranger Kafka plugin.** The plugin and its `ranger-kafka*-policymgr-ssl` come from the SSL tool. The Ranger
+   *repository* (Test Connection) is separate, see section 4a.
+5. If MirrorMaker2 logs `terminated during authentication`/brokers log `SSL handshake failed` right after a
+   restart, wait: they stop once the brokers are back. A persistent failure means the truststore does not
+   contain HDPCA or the bootstrap list points at the wrong port.
+6. Ambari sometimes reports a component INSTALLED although the JVM runs (stale PID file) or leaves Connect stopped
+   after a Kafka restart; start it from Ambari and check the REST port.
+
 ## 4. Manual steps for an existing cluster (what was done on rhel9311)
 
 Use the Ambari UI, or `configs.py` / the REST API, then restart the service.
@@ -88,6 +111,29 @@ Set the properties from the table in section 2, restart the service.
 Set `ranger.plugin.<svc>.policy.rest.url` to `https://<ranger-host>:6182`, give the plugin a truststore that has HDPCA
 (Knox also needs its keystore, Trino its truststore in the JDK cacerts), restart. Verify in Ranger
 Audit > Plugins that the policy version equals the repository version.
+
+### 4a. Ranger repositories (Test Connection) after SSL
+Ambari creates a Ranger repository once, at first service start, and never updates it
+(`create_ranger_repository` only creates when missing). After SSL the repo still points at http endpoints and Kafka
+repos stay `SASL_PLAINTEXT`; plugin policy download is not affected, only Test Connection / autocomplete.
+Also `atlas.rest.address` stays `http://...:31000` unless the SSL tool rewrites it (it now does).
+
+```
+export RANGER_PASSWORD=<ranger admin password>
+bin/update_ranger_repos.py --ranger https://<ranger-host>:6182 --user admin --kafka-protocol SASL_SSL        # dry run
+bin/update_ranger_repos.py --ranger https://<ranger-host>:6182 --user admin --kafka-protocol SASL_SSL --apply
+```
+Port map used: Atlas 31000->31443, YARN 8088->8090, KMS 9292->9393, Registry 7788->7790, NiFi Registry 62080->62443,
+NiFi 9190->9191, Solr same port with https. Use `--kafka-protocol SSL` on clusters without Kerberos.
+NiFi repos need the NiFi client certificate identity; Test Connection can still fail there after the URL fix.
+Tracked in ODP-8349.
+
+### 4b. Things that look wrong but are not
+* **Knox plugin on an old policy version after a restart.** It initialises on the first request through the
+  `default` topology. One request (`curl -k -u <user> https://<knox>:8443/gateway/default/webhdfs/v1/?op=LISTSTATUS`)
+  and it downloads the current version.
+* **HBase master with an old policy version.** The standby master does not load the Ranger coprocessor, only the
+  active one polls (`curl -k https://<master>:16010/jmx?qry=Hadoop:service=HBase,name=Master,sub=Server | grep isActiveMaster`).
 
 ## 5. Verification
 

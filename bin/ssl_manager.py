@@ -299,6 +299,10 @@ def update_configs_ambari(services, accessor, cluster, conf_file):
                     section[k] = config[0].get("oozie.base.url").replace('http:', 'https:').replace('11000', '11443')
                 elif section[k] == "$druidLoadList":
                     section[k] = config[0].get("druid.extensions.loadList").replace(']', ',"simple-client-sslcontext"]') 
+                elif section[k] == "$atlasRestAddress":
+                    # keep every host of a multi-host list, only switch scheme and port
+                    section[k] = ",".join(a.strip().replace('http:', 'https:').replace(':31000', ':31443')
+                                          for a in config[0].get("atlas.rest.address").split(','))
                 elif section[k] == "$rangerSslUrl":
                     section[k] = config[0].get("policymgr_external_url").replace('http:', 'https:').replace('6080','6182')
                 elif section[k] == "$keyProviderPath":
@@ -347,6 +351,9 @@ def disable_configs(service, accessor, cluster, conf_file):
                     section[k] = config[0].get("yarn.log.server.url").replace('https:', 'http:').replace('19890', '19888')
                 elif section[k] == "$timelineserver":
                     section[k] = config[0].get("yarn.log.server.web-service.url").replace('https:', 'http:').replace('8190', '8188')
+                elif section[k] == "$atlasRestAddress":
+                    section[k] = ",".join(a.strip().replace('https:', 'http:').replace(':31443', ':31000')
+                                          for a in config[0].get("atlas.rest.address").split(','))
                 config[0].update({k: section[k]})
             logger.debug("New configs for {0} are :{1}".format(config_type, json.dumps(config, indent=2)))
             updater = put_configs(config)

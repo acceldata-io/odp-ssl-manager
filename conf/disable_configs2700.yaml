@@ -315,6 +315,7 @@ TRINO_GATEWAY:
 ATLAS:
   - config_type: application-properties
     atlas.enableTLS: false
+    atlas.rest.address: $atlasRestAddress
 
 CELEBORN:
   - config_type: celeborn-security
