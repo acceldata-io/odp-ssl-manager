@@ -256,8 +256,9 @@ not exercised, only the "0 down" result.
 Needs: ssh access to the hosts (`--scpKeyFile`, sudo unless root), the Ambari API, and the Ranger Admin URL reachable
 from where it runs. The Ranger credentials default to the ones Ambari keeps in `ranger-env`; they can be stale (as on
 rhel9311), so `--ranger-user` plus `$RANGER_PASSWORD` override them.
-The SSL pipeline job still has to call it after its service restarts (the wrapper script
-`complete_automated_ssl_setup_hetzner.sh` lives on the mirror and is not in this repo).
+The SSL pipeline job calls it through `bin/post_ssl_run.sh <ambari> <cluster> <ssh key>` as the last line of the wrapper
+`complete_automated_ssl_setup_hetzner.sh` (on the mirror, not in this repo), right after the stale-config RESTART request.
+The helper waits until no Ambari request is running, then runs the steps; it always exits 0 so it cannot fail the job.
 
 ## 6. Still plain or self-signed (not covered)
 
