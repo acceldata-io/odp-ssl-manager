@@ -959,6 +959,10 @@ def main():
             logger.info("UI's to enable SSL are {0}".format(ui_to_be_considered))
             parse_ui(ui_to_be_considered, accessor, cluster, conf_file)
 
+    if enable is True:
+        logger.info("Next: restart the services that picked up new SSL configs, then run bin/post_ssl_steps.py "
+                    "(Trino CA trust, Knox keystore, Infra Solr replicas, Ranger repositories - these are not Ambari config edits).")
+
 
 if __name__ == "__main__":
     try:
