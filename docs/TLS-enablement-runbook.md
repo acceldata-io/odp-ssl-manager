@@ -221,6 +221,36 @@ Result on rhel9311 after this round: 102 TLS ports (98 signed by HDPCA).
   produced (ambari-mpacks, same ticket). Check: `grep authorizer.impl /etc/atlas/conf/atlas-application.properties`
   says `ranger` after a client config refresh.
 
+## 5b. Post-SSL steps script (ODP-8357)
+
+`ssl_manager.py` only edits Ambari configs and never restarts services. These four things are not config edits and
+used to be manual; `bin/post_ssl_steps.py` does them. Run it **after** the services were restarted on the new configs
+(it is idempotent: a second run changes nothing, and it only acts on installed services):
+
+```
+bin/post_ssl_steps.py --host <ambari> --port 8446 --protocol https --user admin --password <pw> --cluster <name> \
+    --properties conf/ca.properties --scpKeyFile <ssh key> --scpUserName <user> \
+    [--steps all|trino-ca,knox,infra-solr,ranger-repos] [--dry-run] [--no-restart] \
+    [--ranger-url <url> --ranger-user <user>   (password in $RANGER_PASSWORD)] [--ssh-config <file>]
+```
+
+| Step | What it does | Restarts |
+|---|---|---|
+| `trino-ca` | imports the certificates of the cluster truststore into the JDK cacerts Trino uses (matched by SHA-256 fingerprint) | Trino, only if something was imported |
+| `knox` | creates the `gateway-identity-*` aliases with `knoxcli`, sets `gateway.tls.*` in `gateway-site` to the cluster keystore | Knox, only if an alias was created or `gateway-site` changed |
+| `infra-solr` | reads the replica states of every Infra Solr collection from ZooKeeper; restarts Infra Solr if any replica is `down` | Infra Solr, only if a replica is down |
+| `ranger-repos` | moves Ranger repos to the TLS endpoints, Kafka repos to the broker protocol, repos carrying `hadoop.rpc.protection` to the cluster value | none |
+
+Tested on rhel9311 (Kerberos + SSL): a clean run changes nothing; with the Trino CA entries deleted it imported them and
+restarted Trino; with the Solr repo URL and the HDFS repo RPC protection reverted it moved both back; Knox created its
+aliases and restarted once, then reported them present. The Infra Solr restart path (a replica that is really `down`) was
+not exercised, only the "0 down" result.
+Needs: ssh access to the hosts (`--scpKeyFile`, sudo unless root), the Ambari API, and the Ranger Admin URL reachable
+from where it runs. The Ranger credentials default to the ones Ambari keeps in `ranger-env`; they can be stale (as on
+rhel9311), so `--ranger-user` plus `$RANGER_PASSWORD` override them.
+The SSL pipeline job still has to call it after its service restarts (the wrapper script
+`complete_automated_ssl_setup_hetzner.sh` lives on the mirror and is not in this repo).
+
 ## 6. Still plain or self-signed (not covered)
 
 | Item | Why / next step |
