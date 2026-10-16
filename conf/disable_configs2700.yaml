@@ -216,6 +216,10 @@ REGISTRY:
     registry.trustStoreType: JKS
     registry.ssl.isenabled: False
 
+  - config_type: ranger-schema-registry-audit
+    delete: true
+    xasecure.audit.destination.hdfs.config.hadoop.rpc.protection: privacy
+    xasecure.audit.destination.hdfs.config.dfs.data.transfer.protection: authentication,privacy
 
 RANGERPLUGINS:
   - config_type: ranger-test-policymgr-ssl
@@ -297,12 +301,22 @@ NIFI2:
   - config_type: nifi2-ambari-ssl-config
     nifi.node.ssl.isenabled: false
 
+  - config_type: ranger-nifi2-audit
+    delete: true
+    xasecure.audit.destination.hdfs.config.hadoop.rpc.protection: privacy
+    xasecure.audit.destination.hdfs.config.dfs.data.transfer.protection: authentication,privacy
+
 NIFI_REGISTRY2:
   - config_type: nifi-registry2-ambari-config
     nifi.registry.port: 62080
 
   - config_type: nifi-registry2-ambari-ssl-config
     nifi.registry.ssl.isenabled: false
+
+  - config_type: ranger-nifi-registry2-audit
+    delete: true
+    xasecure.audit.destination.hdfs.config.hadoop.rpc.protection: privacy
+    xasecure.audit.destination.hdfs.config.dfs.data.transfer.protection: authentication,privacy
 
 SOLR:
   - config_type: solr-config
@@ -352,3 +366,9 @@ SPARK4:
 CLICKHOUSE:
   - config_type: clickhouse-env
     enable_ssl: false
+
+TRINO:
+  - config_type: ranger-trino-audit
+    delete: true
+    xasecure.audit.destination.hdfs.config.hadoop.rpc.protection: privacy
+    xasecure.audit.destination.hdfs.config.dfs.data.transfer.protection: authentication,privacy
