@@ -252,9 +252,9 @@ def put_configs(config):
 
 def get_password(properties, pwd_type):
     password = ""
-    if pwd_type is "keyStorePassword":
+    if pwd_type == "keyStorePassword":
         password = base64.b64decode(read_conf_file(properties, "caprops", "keyStorePassword")).decode('utf-8')
-    elif pwd_type is "trustStorePassword":
+    elif pwd_type == "trustStorePassword":
         password = base64.b64decode(read_conf_file(properties, "caprops", "trustStorePassword")).decode('utf-8')
     return password
 
@@ -586,7 +586,7 @@ def read_ca_conf_file(properties, section):
             ca_config = f.read()
         config = configparser.RawConfigParser()
         config.optionxform = str
-        config.readfp(io.StringIO(ca_config))
+        config.read_file(io.StringIO(ca_config))
         for options in config.options(section):
             ca_props.append("--" + options)
             config.set(section, "keyStorePassword", keypass)
