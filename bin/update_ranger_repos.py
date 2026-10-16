@@ -46,7 +46,7 @@ def https_url(value):
     return "https://%s:%s%s" % (host, PORT_MAP.get(port, port), rest)
 
 
-def desired(service, truststore, kafka_protocol):
+def desired(service, truststore, kafka_protocol, rpc_protection=""):
     """Return {key: new value} for one Ranger service."""
     cfg, new = service.get("configs", {}), {}
     for key in URL_KEYS:
@@ -57,11 +57,48 @@ def desired(service, truststore, kafka_protocol):
     if m:
         hosts, port = m.groups()
         new["provider"] = "kms://https@%s:%s/kms" % (hosts, PORT_MAP.get(port, port))
+    # repos that carry hadoop.rpc.protection (hdfs, hbase, ozone ...) must match the cluster, otherwise the lookup fails
+    # with "SaslException: No common protection layer between client and server"
+    if rpc_protection and "hadoop.rpc.protection" in cfg and cfg["hadoop.rpc.protection"] != rpc_protection:
+        new["hadoop.rpc.protection"] = rpc_protection
     if service.get("type") == "kafka" and kafka_protocol and cfg.get("security.protocol") != kafka_protocol:
         new["security.protocol"] = kafka_protocol
         if kafka_protocol in ("SSL", "SASL_SSL") and truststore:
             new["ssl.truststore.location"] = truststore
     return {k: v for k, v in new.items() if cfg.get(k) != v}
+
+
+def sync_repos(ranger, user, password, kafka_protocol="", truststore="", rpc_protection="", explicit=None, apply=False, out=print):
+    """Compare (and with apply=True fix) every Ranger repo. Returns the number of repositories that differ."""
+    ctx = ssl._create_unverified_context()
+    hdr = {"Authorization": "Basic " + base64.b64encode(("%s:%s" % (user, password)).encode()).decode(),
+           "Accept": "application/json", "Content-Type": "application/json"}
+
+    def call(method, path, body=None):
+        req = urllib.request.Request(ranger.rstrip("/") + path, method=method, headers=hdr,
+                                     data=json.dumps(body).encode() if body is not None else None)
+        return json.loads(urllib.request.urlopen(req, context=ctx, timeout=60).read() or b"{}")
+
+    explicit = explicit or {}
+    changed = 0
+    for svc in sorted(call("GET", "/service/public/v2/api/service"), key=lambda s: s["name"]):
+        if svc["name"].endswith("_tag"):
+            continue
+        new = desired(svc, truststore, kafka_protocol, rpc_protection)
+        new.update({k: v for k, v in explicit.get(svc["name"], {}).items() if svc.get("configs", {}).get(k) != v})
+        if not new:
+            continue
+        changed += 1
+        for k, v in new.items():
+            out("%-26s %-24s %s -> %s" % (svc["name"], k, svc["configs"].get(k), v))
+        if apply:
+            svc["configs"].update(new)       # password fields come back masked and are kept by Ranger
+            try:
+                call("PUT", "/service/public/v2/api/service/%s" % svc["id"], svc)
+                out("%-26s updated" % svc["name"])
+            except urllib.error.HTTPError as e:
+                out("%-26s FAILED %s %s" % (svc["name"], e.code, e.read().decode()[:200]))
+    return changed
 
 
 def main():
@@ -75,21 +112,13 @@ def main():
     ap.add_argument("--set", action="append", default=[], metavar="REPO:KEY=VALUE",
                     help="set one repo config key to an exact value, e.g. rhel9311_hadoop:hadoop.rpc.protection=privacy "
                          "(repeatable); use it for settings that must match the cluster, like the HDFS RPC protection")
+    ap.add_argument("--rpc-protection", default="", help="hadoop.rpc.protection of the cluster (core-site); repos that carry the key are moved to it")
     ap.add_argument("--apply", action="store_true", help="write the changes (default is a dry run)")
     a = ap.parse_args()
 
     pw = os.environ.get(a.password_env)
     if not pw:
         sys.exit("set %s to the Ranger admin password" % a.password_env)
-    ctx = ssl._create_unverified_context()
-    hdr = {"Authorization": "Basic " + base64.b64encode(("%s:%s" % (a.user, pw)).encode()).decode(),
-           "Accept": "application/json", "Content-Type": "application/json"}
-
-    def call(method, path, body=None):
-        req = urllib.request.Request(a.ranger.rstrip("/") + path, method=method, headers=hdr,
-                                     data=json.dumps(body).encode() if body is not None else None)
-        return json.loads(urllib.request.urlopen(req, context=ctx, timeout=60).read() or b"{}")
-
     explicit = {}
     for item in a.set:
         repo, _, kv = item.partition(":")
@@ -97,25 +126,7 @@ def main():
         if not repo or not key:
             sys.exit("--set needs REPO:KEY=VALUE, got %r" % item)
         explicit.setdefault(repo, {})[key] = value
-
-    changed = 0
-    for svc in sorted(call("GET", "/service/public/v2/api/service"), key=lambda s: s["name"]):
-        if svc["name"].endswith("_tag"):
-            continue
-        new = desired(svc, a.truststore, a.kafka_protocol)
-        new.update({k: v for k, v in explicit.get(svc["name"], {}).items() if svc.get("configs", {}).get(k) != v})
-        if not new:
-            continue
-        changed += 1
-        for k, v in new.items():
-            print("%-26s %-24s %s -> %s" % (svc["name"], k, svc["configs"].get(k), v))
-        if a.apply:
-            svc["configs"].update(new)       # password fields come back masked and are kept by Ranger
-            try:
-                call("PUT", "/service/public/v2/api/service/%s" % svc["id"], svc)
-                print("%-26s updated" % svc["name"])
-            except urllib.error.HTTPError as e:
-                print("%-26s FAILED %s %s" % (svc["name"], e.code, e.read().decode()[:200]))
+    changed = sync_repos(a.ranger, a.user, pw, a.kafka_protocol, a.truststore, a.rpc_protection, explicit, a.apply)
     print("%d repositories %s" % (changed, "updated" if a.apply else "would change (dry run, use --apply)"))
 
 
