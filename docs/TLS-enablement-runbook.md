@@ -230,7 +230,7 @@ used to be manual; `bin/post_ssl_steps.py` does them. Run it **after** the servi
 ```
 bin/post_ssl_steps.py --host <ambari> --port 8446 --protocol https --user admin --password <pw> --cluster <name> \
     --properties conf/ca.properties --scpKeyFile <ssh key> --scpUserName <user> \
-    [--steps all|trino-ca,knox,infra-solr,ranger-repos] [--dry-run] [--no-restart] \
+    [--steps all|trino-ca,knox,infra-solr,ranger-repos,nifi-ranger] [--cert-dir /etc/security/certificates] [--dry-run] [--no-restart] \
     [--ranger-url <url> --ranger-user <user>   (password in $RANGER_PASSWORD)] [--ssh-config <file>]
 ```
 
@@ -239,7 +239,15 @@ bin/post_ssl_steps.py --host <ambari> --port 8446 --protocol https --user admin 
 | `trino-ca` | imports the certificates of the cluster truststore into the JDK cacerts Trino uses (matched by SHA-256 fingerprint) | Trino, only if something was imported |
 | `knox` | creates the `gateway-identity-*` aliases with `knoxcli`, sets `gateway.tls.*` in `gateway-site` to the cluster keystore | Knox, only if an alias was created or `gateway-site` changed |
 | `infra-solr` | reads the replica states of every Infra Solr collection from ZooKeeper; restarts Infra Solr if any replica is `down` | Infra Solr, only if a replica is down |
-| `ranger-repos` | moves Ranger repos to the TLS endpoints, Kafka repos to the broker protocol, repos carrying `hadoop.rpc.protection` to the cluster value | none |
+| `ranger-repos` | moves Ranger repos to the TLS endpoints, Kafka repos to the broker protocol, repos carrying `hadoop.rpc.protection` to the cluster value; NiFi / NiFi Registry repos also get `SSL` authentication plus client keystore/truststore (operator-set values are kept) | none |
+| `nifi-ranger` (ODP-8358) | creates Ranger users for the certificate identity of the Ranger Admin client and of every NiFi / NiFi Registry node (read from their keystores), adds them to the READ (`/resources`, `/policies`) and WRITE (`/proxy`) policies | none |
+
+A repo is moved to https only when the TLS port answers a handshake (candidates: 31000→31443, 21000→21443, 8088→8090,
+9292→9393, 7788→7790, 62080→62443, 9190→9191/9443, 6080→6182, 9874→9875, or the same port). Plain clusters are left
+untouched. Add mappings with `update_ranger_repos.py --port-map PLAIN=TLS`; `--assume-reachable` skips the probe.
+NiFi nodes use their own host certificates, so the Ranger `/proxy` WRITE policy must list every node identity, not
+only the Ranger Admin client; this is what made NiFi Test Connection return 403 "Authentication Proxy Server not trusted".
+Offline tests (fake Ambari/Ranger): `python3 -m unittest discover -s tests`.
 
 Tested on rhel9311 (Kerberos + SSL): a clean run changes nothing; with the Trino CA entries deleted it imported them and
 restarted Trino; with the Solr repo URL and the HDFS repo RPC protection reverted it moved both back; Knox created its
