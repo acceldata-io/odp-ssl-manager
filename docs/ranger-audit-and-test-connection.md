@@ -4,30 +4,30 @@ Worked out on the `rhel9py12final` cluster (ODP 3.4.3.0-1027, Kerberos `ADSRE.CO
 Everything below was applied through Ambari config changes plus service restarts. No credentials are written in this document;
 use your own Ranger admin, KDC admin and Ambari accounts.
 
-## Current status (rhel9py12final, 2026-10-16 17:25 IST)
+## Current status (rhel9py12final, 2026-10-16 17:50 IST)
 
 "Plugins current" is the number of registered plugins on the latest policy version out of the number registered. Times in brackets are how long ago the newest Solr event or HDFS audit file was written.
 
 | Repo | Test Connection | Plugins current | Solr audit (events, newest) | HDFS audit (newest file) | Note |
 |---|---|---|---|---|---|
-| atlas | OK | 1/1 | 2 (11m) | atlas 12m | events are denied writes from the probe; allowed reads were not recorded |
-| hadoop (HDFS) | OK | 2/2 | 21050 (0m) | hdfs 43m | |
-| hbase | OK | 4/5 | 33 (58m) | master 41m, regional 39m | `hbaseMaster` on the first host stays on an older policy version |
-| hive | OK | 1/1 | 1 (28m) | hiveServer2 29m | only my probe query; otherwise idle |
-| kafka3 | OK | 3/3 | 108 (5m) | kafka3 39m | |
-| kafka4 | OK | 3/3 | 108 (5m) | kafka4 39m | |
-| kms | OK | 2/2 | 0 | kms 55m | Solr events not shown in the admin audit view for this repo type |
-| knox | OK | 1/1 | 4 (30m) | knox 32m | worked after the topology moved to `XASecurePDPKnox` |
-| kudu | OK | 1/1 | 2 (10m) | kudu 10m | after enabling both audit destinations |
-| nifi | OK | 0/0 | 0 | none | NiFi is HTTP only, plugin cannot start |
-| nifi_registry | OK | 0/0 | 0 | none | HTTP only, plugin cannot start |
-| ozone | OK | 3/3 | 186 (5m) | ozone 55m | |
-| registry (Schema Registry) | OK | 1/1 | 8 (9m) | schema-registry 10m | after fixing the audit config |
-| solr | OK | 1/1 | 21 (5m) | solr 5m | HDFS audit enabled in this work |
-| trino | OK | 2/2 | 30 (5m) | trino 48m | |
-| yarn | OK | 2/2 | 32 (7m) | yarn 8m | |
+| atlas | OK | 1/1 | 2 (36m) | atlas 37m | events are denied writes from the probe; allowed reads were not recorded |
+| hadoop (HDFS) | OK | 2/2 | 23671 (0m) | hdfs 68m | |
+| hbase | OK | 4/5 | 33 (84m) | master 66m, regional 64m | `hbaseMaster` on the first host stays on an older policy version |
+| hive | OK | 1/1 | 1 (53m) | hiveServer2 54m | only my probe query; otherwise idle |
+| kafka3 | OK | 3/3 | 144 (5m) | kafka3 64m | |
+| kafka4 | OK | 3/3 | 144 (5m) | kafka4 64m | |
+| kms | OK | 2/2 | 0 | kms 80m | Solr events not shown in the admin audit view for this repo type |
+| knox | OK | 1/1 | 4 (55m) | knox 15m | worked after the topology moved to `XASecurePDPKnox` |
+| kudu | OK | 1/1 | 2 (35m) | kudu 35m | after enabling both audit destinations |
+| nifi | OK | 2/2 | 43 (0m) | nifi 0m | TLS enabled on NiFi 2, plugin registered, audits to Solr and HDFS |
+| nifi_registry | OK | 1/1 | 7 (0m) | nifi-registry 2m | TLS enabled, plugin registered, audits to Solr and HDFS |
+| ozone | OK | 3/3 | 192 (5m) | ozone 80m | |
+| registry (Schema Registry) | OK | 1/1 | 8 (35m) | schema-registry 35m | after fixing the audit config |
+| solr | OK | 1/1 | 24 (5m) | solr 30m | HDFS audit enabled in this work |
+| trino | OK | 2/2 | 39 (5m) | trino 73m | |
+| yarn | OK | 2/2 | 32 (32m) | yarn 33m | |
 
-Summary: 16 of 16 Test Connection pass. Solr and HDFS audit both flow for 14 repos. KMS has HDFS audit only in the admin view. NiFi and NiFi Registry have neither until TLS is enabled.
+Summary: 16 of 16 Test Connection pass. Solr and HDFS audit both flow for 16 repos except KMS (HDFS only in the admin view). HBase has one of five plugins on an older policy version.
 
 ## 1. What "working" looks like
 
@@ -98,11 +98,23 @@ Verification of the Ranger Admin truststore on RHEL: `update-ca-trust` does not 
 Import the certificate directly with `keytool -importcert -cacerts ...`. A later `update-ca-trust` run replaces that file, so import the CA that signed the service
 certificate when you can instead of leaf certificates.
 
-## 5. Services that need TLS before the plugin can work
+## 5. NiFi and NiFi Registry (need TLS first)
 
 NiFi 2 and NiFi Registry 2 load their Ranger authorizer only when the web server is secured. With `nifi.web.https.port` (or `nifi.registry.web.https.port`) empty
-the policy cache stays a 0-byte file, no plugin registers and no audit is written, even though Test Connection can pass. Enable TLS first (the SSL setup),
-then `bin/post_ssl_steps.py` creates the Ranger users and `/proxy`, `/resources` policies for the node identities (see `TLS-enablement-runbook.md` section 5b).
+the policy cache stays a 0-byte file, no plugin registers and no audit is written. What was done on this cluster, in order:
+
+1. Generate a CA and per-host keystores with the SSL manager, and update only the two UIs' Ambari configs. Run on the Ambari host as root, from the cloned repo with a `conf/ca.properties` listing every cluster host:
+   `python3 bin/ssl_manager.py --ca --properties=conf/ca.properties --isOverwrite --enable-ssl --ui=NIFI2,NIFI_REGISTRY2 --host <ambari> --cluster <name> --protocol=http --port=8080`
+   Without `--scpKeyFile` the tool skips copying the certificates (it needs root ssh to every host, which is disabled here).
+2. Copy `keystore.jks` and `truststore.jks` of each host to `/etc/security/certificates` on that host (directory 755, files 644). Ranger Admin's host needs them too: its keystore identity is the client NiFi authorises.
+3. Restart NiFi 2 and NiFi Registry 2. They now listen on https (9191 and 62443 here).
+4. Run `bin/post_ssl_steps.py --steps ranger-repos,nifi-ranger` from a machine that can resolve the cluster host names. `ranger-repos` moves the repos to https with `SSL` authentication and the client keystore, and `nifi-ranger` creates Ranger users for the certificate identity of Ranger Admin and every node, plus the `/resources` or `/policies` READ and `/proxy` WRITE policies. The order matters: `nifi-ranger` only acts on repos that already use https.
+5. Set the audit destinations (section 2) on `ranger-nifi2-audit` and `ranger-nifi-registry2-audit`: HDFS and Solr true, real directory and ZooKeeper quorum. Restart.
+6. Solr audit from NiFi needs SolrJ 8.11.3. The NiFi Ranger bundle ships SolrJ 9.7 with Jetty 12 and fails with `NoClassDefFoundError: org/eclipse/jetty/client/util/SPNEGOAuthentication`. Until the fixed NAR is built (NiFi branch `ODP-8280`), replace the SolrJ 9 and Jetty 12 jars in `nifi-ranger-nar-*.nar` (`NAR-INF/bundled-dependencies`) and in `nifi-registry2/ext/ranger/lib` with `solr-solrj-8.11.3.jar` and the Jetty 9.4 http/io/util jars, clear the unpacked NAR work directory and restart. Keep the originals.
+
+Result: Test Connection passes, 2 NiFi plugins and 1 Registry plugin on the latest policy version, audit events in Solr and HDFS.
+
+Note: the SSL manager itself failed on Python 3.12 (`RawConfigParser.readfp` was removed). That is fixed on the `ODP-8311` branch.
 
 ## 6. Knox: put the plugin in the request path
 
@@ -138,7 +150,6 @@ latest policy version. The data sources are the Ranger public API (`/service/pub
 
 ## 9. Known gaps on this cluster
 
-- NiFi and NiFi Registry: HTTP only, so no plugin and no audit (section 5).
 - KMS: HDFS audit works; its Solr events are not shown in the admin audit view.
 - HBase: one of five plugins (the `hbaseMaster` on the first host) stays on an older policy version. It is probably a standby master that has not started its plugin; not confirmed.
-- The Trino and Knox certificate imports, the Knox demo LDAP start and the Ranger Admin truststore change are manual on this cluster. They are not in the mpack or blueprints, so a rebuilt cluster needs them again.
+- The Trino and Knox certificate imports, the Knox demo LDAP start, the Ranger Admin truststore change and the SolrJ replacement in the NiFi NAR are manual on this cluster. They are not in the mpack or blueprints, so a rebuilt cluster needs them again.
