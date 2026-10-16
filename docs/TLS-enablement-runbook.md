@@ -206,6 +206,21 @@ Connect REST: curl http://<h>:8083/  (3.x)  and :8084 (4.x)
 
 Result on rhel9311 after this round: 102 TLS ports (98 signed by HDPCA).
 
+## 5a. Ranger audits after SSL (ODP-8357)
+
+* **HDFS audit writer of Trino, NiFi, NiFi Registry, Schema Registry.** These plugins build their own Hadoop client
+  config from `xasecure.audit.destination.hdfs.config.*` and do not see core-site. After SSL the cluster uses
+  `hadoop.rpc.protection=privacy`; the writer defaults to `authentication` and fails with
+  `SaslException: No common protection layer between client and server`, so no HDFS audit file is written.
+  The SSL tool now sets `xasecure.audit.destination.hdfs.config.hadoop.rpc.protection=privacy` and
+  `xasecure.audit.destination.hdfs.config.dfs.data.transfer.protection=authentication,privacy` in `ranger-trino-audit`,
+  `ranger-nifi2-audit`, `ranger-nifi-registry2-audit` and `ranger-schema-registry-audit` (removed by `--disable-ssl`).
+  Check: `hdfs dfs -ls -R /ranger/audit/<trino|nifi|nifi-registry|schema-registry>` shows a file for today.
+* **Atlas.** `atlas_client.py` and `atlas_server.py` both write `atlas-application.properties`; the client writer used to
+  reset `atlas.authorizer.impl` to the Ambari default `simple`, so Atlas ignored Ranger and no Ranger audits were
+  produced (ambari-mpacks, same ticket). Check: `grep authorizer.impl /etc/atlas/conf/atlas-application.properties`
+  says `ranger` after a client config refresh.
+
 ## 6. Still plain or self-signed (not covered)
 
 | Item | Why / next step |

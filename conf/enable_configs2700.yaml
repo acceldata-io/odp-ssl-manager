@@ -646,6 +646,11 @@ REGISTRY:
     registry.trustStoreType: JKS
     registry.ssl.isenabled: True
 
+  # the audit writer of this plugin does not see core-site, so it needs the cluster RPC/data protection (privacy after SSL) or HDFS audits fail with 'No common protection layer'
+  - config_type: ranger-schema-registry-audit
+    xasecure.audit.destination.hdfs.config.hadoop.rpc.protection: privacy
+    xasecure.audit.destination.hdfs.config.dfs.data.transfer.protection: authentication,privacy
+
 OOZIE:
   - config_type: oozie-site
     oozie.https.enabled: true
@@ -777,6 +782,11 @@ NIFI2:
     nifi.ssl.truststoreType: jks
     nifi.ssl.truststorePassword: $truststorepassword
 
+  # the audit writer of this plugin does not see core-site, so it needs the cluster RPC/data protection (privacy after SSL) or HDFS audits fail with 'No common protection layer'
+  - config_type: ranger-nifi2-audit
+    xasecure.audit.destination.hdfs.config.hadoop.rpc.protection: privacy
+    xasecure.audit.destination.hdfs.config.dfs.data.transfer.protection: authentication,privacy
+
 NIFI_REGISTRY2:
   - config_type: nifi-registry2-ambari-config
     nifi.registry.port:
@@ -803,6 +813,11 @@ NIFI_REGISTRY2:
     nifi.registry.ssl.truststore: $truststore
     nifi.registry.ssl.truststoreType: jks
     nifi.registry.ssl.truststorePassword: $truststorepassword
+
+  # the audit writer of this plugin does not see core-site, so it needs the cluster RPC/data protection (privacy after SSL) or HDFS audits fail with 'No common protection layer'
+  - config_type: ranger-nifi-registry2-audit
+    xasecure.audit.destination.hdfs.config.hadoop.rpc.protection: privacy
+    xasecure.audit.destination.hdfs.config.dfs.data.transfer.protection: authentication,privacy
 
 SOLR:
   - config_type: solr-config
@@ -895,3 +910,8 @@ TRINO:
   - config_type: trino-env
     ssl_keystore: $keystore
     ssl_keystore_password: $keystorepassword
+
+  # the audit writer of this plugin does not see core-site, so it needs the cluster RPC/data protection (privacy after SSL) or HDFS audits fail with 'No common protection layer'
+  - config_type: ranger-trino-audit
+    xasecure.audit.destination.hdfs.config.hadoop.rpc.protection: privacy
+    xasecure.audit.destination.hdfs.config.dfs.data.transfer.protection: authentication,privacy
